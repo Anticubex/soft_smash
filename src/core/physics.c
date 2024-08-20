@@ -112,7 +112,7 @@ void update_SoftBody(SoftBody sb, WorldValues worldValues, float dt) {
                 SBPoint_addForce(sb, b_idx, Vector2Scale(diffNorm, -f), dt);
         }
 
-        // TODO : Softbody drag, using area and stuff
+        // TODO : Softbody drag/air resistance, using area and stuff
 }
 
 Vector2 rotateQuarterTurn(Vector2 v) {
