@@ -103,28 +103,6 @@ void update_SoftBody(SoftBody sb, WorldValues worldValues, float dt) {
                 }
         }
 
-        // This one's gonna be a marathon to compute. Use sparingly.
-        if (sb.type & SoftBodyType_SelfColliding) {
-                for (int i = 0; i < sb.num_points - 1; i++) {
-                        for (int j = i++; j < sb.num_points; j++) {
-                                PointBody a = sb.points[i];
-                                PointBody b = sb.points[j];
-                                Vector2 diff = Vector2Subtract(a.position, b.position);
-
-                                float length = Vector2LengthSqr(diff);
-
-                                if (length > sb.radii * sb.radii)
-                                        continue;
-
-                                Vector2 midpoint = Vector2Scale(Vector2Add(a.position, b.position), 0.5);
-                                Vector2 newHalfDiff = Vector2Scale(Vector2Normalize(diff), sb.radii);
-
-                                a.position = Vector2Add(midpoint, newHalfDiff);
-                                b.position = Vector2Subtract(midpoint, newHalfDiff);
-                        }
-                }
-        }
-
         // Now for your basic spring force
         for (int i = 0; i < sb.num_springs; i++) {
                 PointBody a = sb.points[sb.springA[i]];

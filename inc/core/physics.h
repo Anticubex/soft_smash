@@ -30,7 +30,6 @@ typedef struct PointBody {
 typedef enum SoftBodyType {
         SoftBodyType_Shape = 0b001,
         SoftBodyType_Pressure = 0b010,
-        SoftBodyType_SelfColliding = 0b100,
 } SoftBodyType;
 typedef struct SoftBody {
         SoftBodyType type;
@@ -46,7 +45,6 @@ typedef struct SoftBody {
         float springDamp;
         float shapeSpringStrength;
         float nRT;
-        float radii;
         BB bounds;
 } SoftBody;
 
