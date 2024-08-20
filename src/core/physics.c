@@ -1,39 +1,23 @@
 #include "core/physics.h"
 #include "physics.h"
-#include <math.h>
-#include <stdlib.h>
+#include <bettermath.h>
 
-void update_PointBody(PointBody pb, WorldValues worldValues, float dt) {
-        pb.position = Vector2Add(pb.position, Vector2Scale(pb.velocity, dt));
-
-        pb.velocity = Vector2Add(pb.velocity, Vector2Scale(worldValues.gravity, dt));
-        // Apply drag
-        float drag_coeff = (pb.linearDrag < 0) ? worldValues.linearDrag : pb.linearDrag;
-        if (!FloatEquals(drag_coeff, 0.f)) {
-                pb.velocity = Vector2Scale(
-                    pb.velocity,
-                    1. - dt * (0.5 *
-                               worldValues.airDensity *
-                               Vector2Length(pb.velocity) *
-                               drag_coeff *
-                               pb.invMass));
-        }
-}
+void SBPoint_addForce(SoftBody sb, int i, Vector2 force, float dt);
 
 void update_SoftBody(SoftBody sb, WorldValues worldValues, float dt) {
         // Now for the behemoth
 
         // Update every point
-        for (int i = 0; i < sb.num_points; i++) {
-                update_PointBody(sb.points[i], worldValues, dt);
+        for (int i = 0; i < sb.numPoints; i++) {
+                sb.pointPos[i] = Vector2Add(sb.pointPos[i], Vector2Scale(sb.pointVel[i], dt));
         }
         // Update bounding box
-        float minx = sb.points[0].position.x;
+        float minx = sb.pointPos[0].x;
         float maxx = minx;
-        float miny = sb.points[0].position.y;
+        float miny = sb.pointPos[0].y;
         float maxy = miny;
-        for (int i = 1; i < sb.num_points; i++) {
-                Vector2 pos = sb.points[i].position;
+        for (int i = 1; i < sb.numPoints; i++) {
+                Vector2 pos = sb.pointPos[i];
                 minx = pos.x < minx ? pos.x : minx;
                 maxx = pos.x > maxx ? pos.x : maxx;
                 miny = pos.y < miny ? pos.y : miny;
@@ -45,16 +29,16 @@ void update_SoftBody(SoftBody sb, WorldValues worldValues, float dt) {
         if (sb.type & SoftBodyType_Shape) {
                 // Recalculate frame center and rotation
                 Vector2 avg_pos = {0, 0};
-                for (int i = 0; i < sb.num_points; i++) {
-                        avg_pos.x += sb.points[i].position.x;
-                        avg_pos.y += sb.points[i].position.y;
+                for (int i = 0; i < sb.numPoints; i++) {
+                        avg_pos.x += sb.pointPos[i].x;
+                        avg_pos.y += sb.pointPos[i].y;
                 }
-                avg_pos = Vector2Scale(avg_pos, 1 / sb.num_points);
+                avg_pos = Vector2Scale(avg_pos, 1 / sb.numPoints);
                 float avg_rotation = 0;
-                for (int i = 0; i < sb.num_points; i++) {
-                        avg_rotation += Vector2Angle(Vector2Add(sb.shape[i], avg_pos), sb.points[i].position);
+                for (int i = 0; i < sb.numPoints; i++) {
+                        avg_rotation += Vector2Angle(Vector2Add(sb.shape[i], avg_pos), sb.pointPos[i]);
                 }
-                avg_rotation /= sb.num_points;
+                avg_rotation /= sb.numPoints;
 
                 Matrix shapeMatrix = MatrixIdentity();
                 float sinA = sinf(avg_rotation);
@@ -64,12 +48,12 @@ void update_SoftBody(SoftBody sb, WorldValues worldValues, float dt) {
                 shapeMatrix.m4 = -sinA;
                 shapeMatrix.m5 = cosA;
 
-                for (int i = 0; i < sb.num_points; i++) {
+                for (int i = 0; i < sb.numPoints; i++) {
                         // Calculate distance
                         Vector2 shape_pos = Vector2Add(Vector2Transform(sb.shape[i], shapeMatrix), avg_pos);
-                        Vector2 diff = Vector2Subtract(shape_pos, sb.points[i].position);
+                        Vector2 diff = Vector2Subtract(shape_pos, sb.pointPos[i]);
                         float f = Vector2Length(diff) * sb.shapeSpringStrength;
-                        PointBody_applyForce(&sb.points[i], Vector2Scale(Vector2Normalize(diff), f), dt);
+                        PointBody_applyForce(&sb.pointPos[i], Vector2Scale(Vector2Normalize(diff), f), dt);
                 }
         }
         // Note: trying to do pressure on a softbody without at least 2 points leads to a segfault.
@@ -77,37 +61,41 @@ void update_SoftBody(SoftBody sb, WorldValues worldValues, float dt) {
         if (sb.type & SoftBodyType_Pressure) {
                 // Calculate Volume
                 float V =
-                    sb.points[0].position.y * (sb.points[sb.num_points - 1].position.x - sb.points[1].position.x) +
-                    sb.points[sb.num_points - 1].position.y * (sb.points[sb.num_points - 2].position.x - sb.points[0].position.x);
+                    sb.pointPos[0].y * (sb.pointPos[sb.numPoints - 1].x - sb.pointPos[1].x) +
+                    sb.pointPos[sb.numPoints - 1].y * (sb.pointPos[sb.numPoints - 2].x - sb.pointPos[0].x);
                 // Do edge cases
-                for (int i = 1; i < sb.num_points - 1; i++) {
-                        V += sb.points[i].position.y * (sb.points[i - 1].position.x - sb.points[i + 1].position.x);
+                for (int i = 1; i < sb.numPoints - 1; i++) {
+                        V += sb.pointPos[i].y * (sb.pointPos[i - 1].x - sb.pointPos[i + 1].x);
                 }
                 V *= 0.5;
                 // Use gas law for pressure
                 float P = sb.nRT / V;
 
                 // Apply Pressure
-                for (int i = 0; i < sb.num_points; i++) {
-                        PointBody a = sb.points[i];
-                        PointBody b = sb.points[(i + 1) == sb.num_points ? 0 : i + 1];
-                        Vector2 diff = Vector2Subtract(a.position, b.position);
+                for (int i = 0; i < sb.numPoints; i++) {
+                        Vector2 a = sb.pointPos[i];
+                        Vector2 b = sb.pointPos[(i + 1) % sb.numPoints];
+                        Vector2 diff = Vector2Subtract(a, b);
 
                         // Multiplying P by the difference saves us having to calculate the length
                         // This is where the CCW winding comes in
 
                         Vector2 normal = {diff.y * P, -diff.x * P};
 
-                        PointBody_applyForce(&a, normal, dt);
-                        PointBody_applyForce(&b, normal, dt);
+                        SBPoint_addForce(sb, i, normal, dt);
+                        SBPoint_addForce(sb, (i + 1) % sb.numPoints, normal, dt);
                 }
         }
 
         // Now for your basic spring force
-        for (int i = 0; i < sb.num_springs; i++) {
-                PointBody a = sb.points[sb.springA[i]];
-                PointBody b = sb.points[sb.springB[i]];
-                Vector2 diff = Vector2Subtract(a.position, b.position);
+        for (int i = 0; i < sb.numSprings; i++) {
+                int a_idx = sb.springA[i];
+                int b_idx = sb.springB[i];
+                Vector2 a_pos = sb.pointPos[a_idx];
+                Vector2 b_pos = sb.pointPos[b_idx];
+                Vector2 a_vel = sb.pointVel[a_idx];
+                Vector2 b_vel = sb.pointVel[b_idx];
+                Vector2 diff = Vector2Subtract(a_pos, b_pos);
                 // b -> a
 
                 // Calculate force
@@ -118,17 +106,13 @@ void update_SoftBody(SoftBody sb, WorldValues worldValues, float dt) {
                 float x = length - sb.lengths[i];
 
                 float f = -sb.springStrength * x -
-                          sb.springDamp * Vector2DotProduct(Vector2Subtract(a.velocity, b.velocity), diffNorm);
+                          sb.springDamp * Vector2DotProduct(Vector2Subtract(a_vel, b_vel), diffNorm);
 
-                PointBody_applyForce(&a, Vector2Scale(diffNorm, f), dt);
-                PointBody_applyForce(&b, Vector2Scale(diffNorm, -f), dt);
+                SBPoint_addForce(sb, a_idx, Vector2Scale(diffNorm, f), dt);
+                SBPoint_addForce(sb, b_idx, Vector2Scale(diffNorm, -f), dt);
         }
 
         // TODO : Softbody drag, using area and stuff
-}
-
-void PointBody_applyForce(PointBody *pb, Vector2 force, float dt) {
-        pb->velocity = Vector2Add(pb->velocity, Vector2Scale(force, dt * pb->invMass));
 }
 
 Vector2 rotateQuarterTurn(Vector2 v) {
