@@ -52,7 +52,7 @@ void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
                         Vector2 shape_pos = Vector2Add(Vector2Transform(sb->shape[i], shapeMatrix), avg_pos);
                         Vector2 diff = Vector2Subtract(shape_pos, sb->pointPos[i]);
                         float f = Vector2Length(diff) * sb->shapeSpringStrength;
-                        appl(&sb->pointPos[i], Vector2Scale(Vector2Normalize(diff), f), dt);
+                        SBPoint_addForce(sb, i, Vector2Scale(Vector2Normalize(diff), f), dt);
                 }
         }
         // Note: trying to do pressure on a softbody without at least 2 points leads to a segfault.
