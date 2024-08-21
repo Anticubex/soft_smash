@@ -1,7 +1,6 @@
 #ifndef PHYSICS_H
 #define PHYSICS_H
 
-#include "core.h"
 #include <raylib.h>
 #include <raymath.h>
 
