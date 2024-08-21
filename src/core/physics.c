@@ -189,7 +189,7 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                         float nx = dx * x;
                         for (int y = 0; y < py; y++) {
                                 float ny = dy * y;
-                                Vector2 newPt = {nx, dx};
+                                Vector2 newPt = {nx, ny};
                                 sb->pointPos[pt] = Vector2Add(newPt, center);
                                 sb->pointVel[pt] = Vector2Zero();
                                 sb->shape[pt] = Vector2Add(newPt, average);
@@ -303,22 +303,16 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
 
 SoftBody createEmptySoftBody(SoftBodyType type, float mass, float linearDrag, float springStrength, float springDamp, float shapeSpringStrength, float nRT) {
         return (SoftBody){
-            type,
-            0,
-            NULL,
-            NULL,
-            NULL,
-            0,
-            NULL,
-            NULL,
-            NULL,
-            mass,
-            linearDrag,
-            springStrength,
-            springDamp,
-            shapeSpringStrength,
-            nRT,
-            {0, 0, 0, 0}};
+            .type = type,
+            .numPoints = 0,
+            .numSprings = 0,
+            .mass = mass,
+            .linearDrag = linearDrag,
+            .springStrength = springStrength,
+            .springDamp = springDamp,
+            .shapeSpringStrength = shapeSpringStrength,
+            .nRT = nRT,
+        };
 }
 
 void freeSoftbody(SoftBody *toFree) {
