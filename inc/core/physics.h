@@ -13,6 +13,11 @@ typedef struct WorldValues {
         float angularDrag;
 } WorldValues;
 
+typedef struct BB {
+        Vector2 min;
+        Vector2 max;
+} BB;
+
 // Flags, can be both
 typedef enum SoftBodyType {
         SoftBodyType_Shape = 0b001,
@@ -39,12 +44,8 @@ typedef struct SoftBody {
         BB bounds;
 } SoftBody;
 
-void update_SoftBody(SoftBody sb, WorldValues worldValues, float dt);
-
-typedef struct BB {
-        Vector2 min;
-        Vector2 max;
-} BB;
+void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt);
+void SBPoint_addForce(SoftBody *sb, int i, Vector2 force, float dt);
 
 SoftBody createEmptySoftBody(
     SoftBodyType type,
