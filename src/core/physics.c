@@ -1,6 +1,8 @@
 #include "core/physics.h"
 #include "physics.h"
+#include <assert.h>
 #include <bettermath.h>
+#include <stddef.h>
 
 void SBPoint_addForce(SoftBody sb, int i, Vector2 force, float dt);
 
@@ -117,4 +119,214 @@ void update_SoftBody(SoftBody sb, WorldValues worldValues, float dt) {
 
 Vector2 rotateQuarterTurn(Vector2 v) {
         return (Vector2){-v.y, v.x};
+}
+
+void _alloc_sb(SoftBody *sb, int numPoints, int numSprings) {
+        sb->numPoints = numPoints;
+        sb->pointPos = MemAlloc(sizeof(Vector2) * numPoints);
+        sb->pointVel = MemAlloc(sizeof(Vector2) * numPoints);
+        sb->shape = MemAlloc(sizeof(Vector2) * numPoints);
+        sb->numSprings = numSprings;
+        sb->springA = MemAlloc(sizeof(int) * numSprings);
+        sb->springB = MemAlloc(sizeof(int) * numSprings);
+        sb->lengths = MemAlloc(sizeof(float) * numSprings);
+}
+
+// Recommended to just do pressure
+void circleSoftbody(SoftBody *sb, Vector2 center, float radius, int numPoints) {
+
+        float anglePer = TAU / (float)numPoints;
+        float sinA = sin(anglePer);
+        float cosA = cos(anglePer);
+        // In-house rotation matrix from rows
+        Vector2 row1 = {cosA, -sinA};
+        Vector2 row2 = {sinA, cosA};
+
+        float lengths = hypotf(cosA - 1, sinA) * radius;
+
+        _alloc_sb(sb, numPoints, numPoints);
+
+        Vector2 tracker = {radius, 0.f};
+        for (int i = 0; i < numPoints; i++) {
+                sb->pointPos[i] = Vector2Add(tracker, center);
+                sb->pointVel[i] = Vector2Zero();
+                sb->shape[i] = tracker;
+                sb->springA[i] = i;
+                sb->springB[i] = i + 1;
+                sb->lengths[i] = lengths;
+                tracker = (Vector2){Vector2DotProduct(tracker, row1),
+                                    Vector2DotProduct(tracker, row2)};
+        }
+        sb->springB[numPoints - 1] = 0;
+}
+
+// Recommended to just do shape matching.
+// Pressure could be bad.
+// DetailX and Y should be > 1, as they are the
+// number of subdivisions of sides in either dimension
+void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int detailY, bool makeTruss) {
+
+        assert(detailX > 1);
+        assert(detailY > 1);
+
+        if (makeTruss) {
+                int px = detailX + 1;
+                int py = detailY + 1;
+                int numPoints = px * py;
+
+                // The number of links is a math problem I have/had to solve. Fun.
+                int numSprings = detailX * detailY * 2 + detailX * py + detailY * px;
+
+                _alloc_sb(sb, numPoints, numSprings);
+
+                // Do points
+                int pt = 0;
+                float dx = scale.x / detailX;
+                float dy = scale.y / detailX;
+                Vector2 average = Vector2Scale(scale, -0.5);
+                for (int x = 0; x < px; x++) {
+                        float nx = dx * x;
+                        for (int y = 0; y < py; y++) {
+                                float ny = dy * y;
+                                Vector2 newPt = {nx, dx};
+                                sb->pointPos[pt] = Vector2Add(newPt, center);
+                                sb->pointVel[pt] = Vector2Zero();
+                                sb->shape[pt] = Vector2Add(newPt, average);
+                                pt++;
+                        }
+                }
+                // Do vertical struts
+                int spring = 0;
+                for (int x = 0; x < px; x++) {
+                        int pmy = x * py;
+                        for (int y = 0; y < detailY; y++) {
+                                int p = pmy + y;
+                                sb->springA[spring] = p;
+                                sb->springB[spring] = p + 1;
+                                sb->lengths[spring] = dy;
+                                spring++;
+                        }
+                }
+                // Do horizontal struts
+                for (int x = 0; x < detailX; x++) {
+                        // This is why we don't swap the for loops
+                        int pmy = x * py;
+                        for (int y = 0; y < py; y++) {
+                                int p = pmy + y;
+                                sb->springA[spring] = p;
+                                sb->springB[spring] = p + px;
+                                sb->lengths[spring] = dx;
+                                spring++;
+                        }
+                }
+                // Diagonal struts
+                // Actually does two points at once;
+                // Think of it as traversing through the squares between the
+                // points, marked by the point to its top-left (remember in
+                // this engine +y is down)
+                float diagDst = hypotf(dx, dy);
+                for (int x = 0; x < detailX; x++) {
+                        int pmy = x * py;
+                        for (int y = 0; y < detailY; y++) {
+                                int p = pmy + y;
+                                // Down-right strut
+                                sb->springA[spring] = p;
+                                sb->springB[spring] = p + px + 1;
+                                sb->lengths[spring] = diagDst;
+                                spring++;
+                                // Up-left struct
+                                sb->springA[spring] = p + 1;
+                                sb->springB[spring] = p + px;
+                                sb->lengths[spring] = diagDst;
+                                spring++;
+                        }
+                }
+
+        } else {
+                int numPoints = 2 * (detailX + detailY);
+
+                _alloc_sb(sb, numPoints, numPoints);
+
+                int pt = 0;
+                float dx = scale.x / detailX;
+                float dy = scale.y / detailX;
+                Vector2 tracker = {scale.x * 0.5, scale.y * 0.5};
+                // TODO: Try out other idea that directly subdivides surfaces, rather than traverses it
+                // Right side Upwards
+                for (int y = 0; y < detailY; y++) {
+                        sb->pointPos[pt] = Vector2Add(tracker, center);
+                        sb->pointVel[pt] = Vector2Zero();
+                        sb->shape[pt] = tracker;
+                        sb->springA[pt] = pt;
+                        sb->springB[pt] = pt + 1;
+                        sb->lengths[pt] = dy;
+                        pt++;
+                        tracker.y -= dy;
+                }
+                // Top side Leftwards
+                for (int x = 0; x < detailX; x++) {
+                        sb->pointPos[pt] = Vector2Add(tracker, center);
+                        sb->pointVel[pt] = Vector2Zero();
+                        sb->shape[pt] = tracker;
+                        sb->springA[pt] = pt;
+                        sb->springB[pt] = pt + 1;
+                        sb->lengths[pt] = dx;
+                        pt++;
+                        tracker.x -= dx;
+                }
+                // Right side Downwards
+                for (int y = 0; y < detailY; y++) {
+                        sb->pointPos[pt] = Vector2Add(tracker, center);
+                        sb->pointVel[pt] = Vector2Zero();
+                        sb->shape[pt] = tracker;
+                        sb->springA[pt] = pt;
+                        sb->springB[pt] = pt + 1;
+                        sb->lengths[pt] = dy;
+                        pt++;
+                        tracker.y += dy;
+                }
+                // Bottom side Rightwards
+                for (int x = 0; x < detailX - 1; x++) {
+                        sb->pointPos[pt] = Vector2Add(tracker, center);
+                        sb->pointVel[pt] = Vector2Zero();
+                        sb->shape[pt] = tracker;
+                        sb->springA[pt] = pt;
+                        sb->springB[pt] = pt + 1;
+                        sb->lengths[pt] = dx;
+                        pt++;
+                        tracker.x += dx;
+                }
+                sb->springB[pt - 1] = 0;
+        }
+}
+
+SoftBody createEmptySoftBody(SoftBodyType type, float mass, float linearDrag, float springStrength, float springDamp, float shapeSpringStrength, float nRT) {
+        return (SoftBody){
+            type,
+            0,
+            NULL,
+            NULL,
+            NULL,
+            0,
+            NULL,
+            NULL,
+            NULL,
+            mass,
+            linearDrag,
+            springStrength,
+            springDamp,
+            shapeSpringStrength,
+            nRT,
+            {0, 0, 0, 0}};
+}
+
+void freeSoftbody(SoftBody *toFree) {
+        MemFree(toFree->pointPos);
+        MemFree(toFree->pointVel);
+        MemFree(toFree->shape);
+        MemFree(toFree->springA);
+        MemFree(toFree->springB);
+        MemFree(toFree->lengths);
+        toFree->numPoints = 0;
+        toFree->numSprings = 0;
 }
