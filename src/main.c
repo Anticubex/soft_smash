@@ -1,6 +1,6 @@
 #include "mycam.h"
-#include <core.h>
-#include <physics.h>
+#include <core/core.h>
+#include <core/physics.h>
 #include <raylib.h>
 #include <raymath.h>
 
@@ -16,6 +16,9 @@ int main() {
 
         MyCam camera = createCamera((Vector2){0, 0}, 10.0, screenWidth, screenHeight, 0.0);
 
+        SoftBody body = createEmptySoftBody(SoftBodyType_Pressure, 10, 1, 1, 1, 1, 1);
+        circleSoftbody(&body, (Vector2){0, 0}, 10, 8);
+
         while (!WindowShouldClose()) {
                 BeginDrawing();
                 ClearBackground(RAYWHITE);
@@ -24,12 +27,15 @@ int main() {
 
                 BeginMode2D(camera.raylib_cam);
                 /* Draw Stuff Here */
+                DrawRectangleV((Vector2){-1, -1}, (Vector2){1, 1}, RED);
 
                 EndMode2D();
 
                 DrawText("It Works!", 20, 20, 20, BLACK);
                 EndDrawing();
         }
+
+        freeSoftbody(&body);
         CloseWindow();
         return 0;
 }
