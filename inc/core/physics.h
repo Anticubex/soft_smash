@@ -22,12 +22,14 @@ typedef enum SoftBodyType {
 typedef struct SoftBody {
         SoftBodyType type;
         int numPoints;
-        // Points wind CCW mathematically, but because Y is inverted,
-        // this means that on-screen they wind CW
-        // TODO: refactor to make surfaces explicit... this one's gonna suck
         Vector2 *pointPos;
         Vector2 *pointVel;
         Vector2 *shape; // Make sure the frame is balanced (the average of the points is the origin), or else (i think) the body will move on its own
+        // Surfaces wind CCW mathematically, but because Y is inverted,
+        // this means that on-screen they wind CW
+        int numSurfaces;
+        int *surfaceA;
+        int *surfaceB;
         int numSprings;
         int *springA;
         int *springB;
@@ -55,7 +57,7 @@ SoftBody createEmptySoftBody(
 void freeSoftbody(SoftBody *toFree);
 
 // private util function
-void _alloc_sb(SoftBody *sb, int numPoints, int numSprings);
+void _alloc_sb(SoftBody *sb, int numPoints, int numSurfaces, int numSprings);
 
 void circleSoftbody(SoftBody *sb, Vector2 center, float radius, int numPoints);
 void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int detailY, bool makeTruss);

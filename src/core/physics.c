@@ -123,17 +123,6 @@ Vector2 rotateQuarterTurn(Vector2 v) {
         return (Vector2){-v.y, v.x};
 }
 
-void _alloc_sb(SoftBody *sb, int numPoints, int numSprings) {
-        sb->numPoints = numPoints;
-        sb->pointPos = MemAlloc(sizeof(Vector2) * numPoints);
-        sb->pointVel = MemAlloc(sizeof(Vector2) * numPoints);
-        sb->shape = MemAlloc(sizeof(Vector2) * numPoints);
-        sb->numSprings = numSprings;
-        sb->springA = MemAlloc(sizeof(int) * numSprings);
-        sb->springB = MemAlloc(sizeof(int) * numSprings);
-        sb->lengths = MemAlloc(sizeof(float) * numSprings);
-}
-
 // Recommended to just do pressure
 void circleSoftbody(SoftBody *sb, Vector2 center, float radius, int numPoints) {
 
@@ -146,19 +135,22 @@ void circleSoftbody(SoftBody *sb, Vector2 center, float radius, int numPoints) {
 
         float lengths = hypotf(cosA - 1, sinA) * radius;
 
-        _alloc_sb(sb, numPoints, numPoints);
+        _alloc_sb(sb, numPoints, numPoints, numPoints);
 
         Vector2 tracker = {radius, 0.f};
         for (int i = 0; i < numPoints; i++) {
                 sb->pointPos[i] = Vector2Add(tracker, center);
                 sb->pointVel[i] = Vector2Zero();
                 sb->shape[i] = tracker;
+                sb->surfaceA[i] = i;
+                sb->surfaceB[i] = i + 1;
                 sb->springA[i] = i;
                 sb->springB[i] = i + 1;
                 sb->lengths[i] = lengths;
                 tracker = (Vector2){Vector2DotProduct(tracker, row1),
                                     Vector2DotProduct(tracker, row2)};
         }
+        sb->surfaceB[numPoints - 1] = 0;
         sb->springB[numPoints - 1] = 0;
 }
 
@@ -177,9 +169,11 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                 int numPoints = px * py;
 
                 // The number of links is a math problem I have/had to solve. Fun.
-                int numSprings = detailX * detailY * 2 + detailX * py + detailY * px;
+                int numSprings = 2 * detailX * detailY + detailX * py + detailY * px;
 
-                _alloc_sb(sb, numPoints, numSprings);
+                int numSurfaces = 2 * (detailX + detailY);
+
+                _alloc_sb(sb, numPoints, numSurfaces, numSprings);
 
                 // Do points
                 int pt = 0;
@@ -243,11 +237,38 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                                 spring++;
                         }
                 }
+                // Do surfaces
+                int surface = 0;
+                // Top and Bottom
+                for (int x = 0; x < detailX; x++) {
+                        // top
+                        int p = x * px;
+                        sb->surfaceA[surface] = p;
+                        sb->surfaceB[surface] = p + px;
+                        surface++;
+                        // bottom
+                        int bp = p + px - 1;
+                        sb->surfaceA[surface] = bp;
+                        sb->surfaceB[surface] = bp + px;
+                        surface++;
+                }
+                // Left and Right
+                for (int y = 0; y < detailY; y++) {
+                        // Left
+                        sb->surfaceA[surface] = y;
+                        sb->surfaceB[surface] = y + 1;
+                        surface++;
+                        // Right
+                        int p = y + detailX * px;
+                        sb->surfaceA[surface] = p;
+                        sb->surfaceB[surface] = p + 1;
+                        surface++;
+                }
 
         } else {
                 int numPoints = 2 * (detailX + detailY);
 
-                _alloc_sb(sb, numPoints, numPoints);
+                _alloc_sb(sb, numPoints, numPoints, numPoints);
 
                 int pt = 0;
                 float dx = scale.x / detailX;
@@ -259,6 +280,8 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                         sb->pointPos[pt] = Vector2Add(tracker, center);
                         sb->pointVel[pt] = Vector2Zero();
                         sb->shape[pt] = tracker;
+                        sb->surfaceA[pt] = pt;
+                        sb->surfaceB[pt] = pt + 1;
                         sb->springA[pt] = pt;
                         sb->springB[pt] = pt + 1;
                         sb->lengths[pt] = dy;
@@ -270,6 +293,8 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                         sb->pointPos[pt] = Vector2Add(tracker, center);
                         sb->pointVel[pt] = Vector2Zero();
                         sb->shape[pt] = tracker;
+                        sb->surfaceA[pt] = pt;
+                        sb->surfaceB[pt] = pt + 1;
                         sb->springA[pt] = pt;
                         sb->springB[pt] = pt + 1;
                         sb->lengths[pt] = dx;
@@ -281,6 +306,8 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                         sb->pointPos[pt] = Vector2Add(tracker, center);
                         sb->pointVel[pt] = Vector2Zero();
                         sb->shape[pt] = tracker;
+                        sb->surfaceA[pt] = pt;
+                        sb->surfaceB[pt] = pt + 1;
                         sb->springA[pt] = pt;
                         sb->springB[pt] = pt + 1;
                         sb->lengths[pt] = dy;
@@ -292,12 +319,15 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                         sb->pointPos[pt] = Vector2Add(tracker, center);
                         sb->pointVel[pt] = Vector2Zero();
                         sb->shape[pt] = tracker;
+                        sb->surfaceA[pt] = pt;
+                        sb->surfaceB[pt] = pt + 1;
                         sb->springA[pt] = pt;
                         sb->springB[pt] = pt + 1;
                         sb->lengths[pt] = dx;
                         pt++;
                         tracker.x += dx;
                 }
+                sb->surfaceB[pt - 1] = 0;
                 sb->springB[pt - 1] = 0;
         }
 }
@@ -306,6 +336,7 @@ SoftBody createEmptySoftBody(SoftBodyType type, float mass, float linearDrag, fl
         return (SoftBody){
             .type = type,
             .numPoints = 0,
+            .numSurfaces = 0,
             .numSprings = 0,
             .mass = mass,
             .linearDrag = linearDrag,
@@ -316,10 +347,26 @@ SoftBody createEmptySoftBody(SoftBodyType type, float mass, float linearDrag, fl
         };
 }
 
+void _alloc_sb(SoftBody *sb, int numPoints, int numSurfaces, int numSprings) {
+        sb->numPoints = numPoints;
+        sb->pointPos = MemAlloc(sizeof(Vector2) * numPoints);
+        sb->pointVel = MemAlloc(sizeof(Vector2) * numPoints);
+        sb->shape = MemAlloc(sizeof(Vector2) * numPoints);
+        sb->numSurfaces = numSurfaces;
+        sb->surfaceA = MemAlloc(sizeof(int) * numSprings);
+        sb->surfaceB = MemAlloc(sizeof(int) * numSprings);
+        sb->numSprings = numSprings;
+        sb->springA = MemAlloc(sizeof(int) * numSprings);
+        sb->springB = MemAlloc(sizeof(int) * numSprings);
+        sb->lengths = MemAlloc(sizeof(float) * numSprings);
+}
+
 void freeSoftbody(SoftBody *toFree) {
         MemFree(toFree->pointPos);
         MemFree(toFree->pointVel);
         MemFree(toFree->shape);
+        MemFree(toFree->surfaceA);
+        MemFree(toFree->surfaceB);
         MemFree(toFree->springA);
         MemFree(toFree->springB);
         MemFree(toFree->lengths);
