@@ -58,7 +58,8 @@ SoftBody createEmptySoftBody(
     float nRT);
 void freeSoftbody(SoftBody *toFree);
 
-// private util function
+// private util functions
+void _center_sb_shape(SoftBody *sb);
 void _alloc_sb(SoftBody *sb, int numPoints, int numSurfaces, int numSprings);
 
 void circleSoftbody(SoftBody *sb, Vector2 center, float radius, int numPoints);

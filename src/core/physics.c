@@ -33,7 +33,7 @@ void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
                         avg_pos.x += sb->pointPos[i].x;
                         avg_pos.y += sb->pointPos[i].y;
                 }
-                avg_pos = Vector2Scale(avg_pos, 1 / sb->numPoints);
+                avg_pos = Vector2Scale(avg_pos, 1.f / sb->numPoints);
                 float avg_rotation = 0;
                 for (int i = 0; i < sb->numPoints; i++) {
                         avg_rotation += Vector2Angle(Vector2Add(sb->shape[i], avg_pos), sb->pointPos[i]);
@@ -156,6 +156,8 @@ void circleSoftbody(SoftBody *sb, Vector2 center, float radius, int numPoints) {
         }
         sb->surfaceB[numPoints - 1] = 0;
         sb->springB[numPoints - 1] = 0;
+
+        _center_sb_shape(sb);
 }
 
 // Recommended to just do shape matching.
@@ -334,6 +336,8 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                 sb->surfaceB[pt - 1] = 0;
                 sb->springB[pt - 1] = 0;
         }
+
+        _center_sb_shape(sb);
 }
 
 SoftBody createEmptySoftBody(SoftBodyType type, float mass, float linearDrag, float springStrength, float springDamp, float shapeSpringStrength, float nRT) {
@@ -351,7 +355,21 @@ SoftBody createEmptySoftBody(SoftBodyType type, float mass, float linearDrag, fl
         };
 }
 
+void _center_sb_shape(SoftBody *sb) {
+        Vector2 avg_pos = {0, 0};
+        for (int i = 0; i < sb->numPoints; i++) {
+                avg_pos.x += sb->shape[i].x;
+                avg_pos.y += sb->shape[i].y;
+        }
+        avg_pos = Vector2Scale(avg_pos, 1.f / sb->numPoints);
+        for (int i = 0; i < sb->numPoints; i++) {
+                sb->shape[i].x -= avg_pos.x;
+                sb->shape[i].y -= avg_pos.y;
+        }
+}
+
 void _alloc_sb(SoftBody *sb, int numPoints, int numSurfaces, int numSprings) {
+
         sb->numPoints = numPoints;
         sb->pointPos = MemAlloc(sizeof(Vector2) * numPoints);
         sb->pointVel = MemAlloc(sizeof(Vector2) * numPoints);
