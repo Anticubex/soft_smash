@@ -287,7 +287,7 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                         tracker.y += dy;
                 }
                 // Bottom side Rightwards
-                for (int x = 0; x < detailX - 1; x++) {
+                for (int x = 0; x < detailX; x++) {
                         sb->pointPos[pt] = Vector2Add(tracker, center);
                         sb->pointVel[pt] = Vector2Zero();
                         sb->shape[pt] = tracker;
