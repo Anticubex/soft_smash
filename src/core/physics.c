@@ -60,21 +60,22 @@ void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
         // Hmm. Blame it on the user.
         if (sb->type & SoftBodyType_Pressure) {
                 // Calculate Volume
-                float V =
-                    sb->pointPos[0].y * (sb->pointPos[sb->numPoints - 1].x - sb->pointPos[1].x) +
-                    sb->pointPos[sb->numPoints - 1].y * (sb->pointPos[sb->numPoints - 2].x - sb->pointPos[0].x);
-                // Do edge cases
-                for (int i = 1; i < sb->numPoints - 1; i++) {
-                        V += sb->pointPos[i].y * (sb->pointPos[i - 1].x - sb->pointPos[i + 1].x);
+                // Use shoelace formula, summing matrix determinants along the edges
+                float V = 0.f;
+                for (int i = 0; i < sb->numSurfaces; i++) {
+                        Vector2 a = sb->pointPos[sb->surfaceA[i]];
+                        Vector2 b = sb->pointPos[sb->surfaceB[i]];
+                        V += a.x * b.y - a.y * b.x;
                 }
-                V *= 0.5;
-                // Use gas law for pressure
+                V *= 0.5f;
                 float P = sb->nRT / V;
 
                 // Apply Pressure
-                for (int i = 0; i < sb->numPoints; i++) {
-                        Vector2 a = sb->pointPos[i];
-                        Vector2 b = sb->pointPos[(i + 1) % sb->numPoints];
+                for (int i = 0; i < sb->numSurfaces; i++) {
+                        int a_idx = sb->surfaceA[i];
+                        int b_idx = sb->surfaceB[i];
+                        Vector2 a = sb->pointPos[a_idx];
+                        Vector2 b = sb->pointPos[b_idx];
                         Vector2 diff = Vector2Subtract(a, b);
 
                         // Multiplying P by the difference saves us having to calculate the length
@@ -82,8 +83,8 @@ void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
 
                         Vector2 normal = {-diff.y * P, diff.x * P};
 
-                        SBPoint_addForce(sb, i, normal, dt);
-                        SBPoint_addForce(sb, (i + 1) % sb->numPoints, normal, dt);
+                        SBPoint_addForce(sb, a_idx, normal, dt);
+                        SBPoint_addForce(sb, b_idx, normal, dt);
                 }
         }
 
