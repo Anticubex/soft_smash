@@ -1,14 +1,17 @@
 #include "debug.h"
 
 void DrawSoftbody_debug(SoftBody sb) {
+        // Draw Springs
         for (int i = 0; i < sb.numSprings; i++) {
-                DrawLineEx(sb.pointPos[sb.springA[i]], sb.pointPos[sb.springB[i]], 0.1f, YELLOW);
+                DrawLineEx(sb.pointPos[sb.springA[i]], sb.pointPos[sb.springB[i]], 0.15f, YELLOW);
         }
-        // DrawLineStrip(sb.pointPos, sb.numPoints, BLACK);
-        // DrawLineV(sb.pointPos[sb.numPoints - 1], sb.pointPos[0], BLACK);
+        // Draw surfaces
+        for (int i = 0; i < sb.numSurfaces; i++) {
+                DrawLineEx(sb.pointPos[sb.surfaceA[i]], sb.pointPos[sb.surfaceB[i]], 0.1f, BLACK);
+        }
+        // Draw/label points
         for (int i = 0; i < sb.numPoints; i++) {
-                DrawLineEx(sb.pointPos[i], sb.pointPos[(i + 1) % sb.numPoints], 0.05f, BLACK);
-                DrawCircleV(sb.pointPos[i], 0.1f, BLACK);
-                DrawTextEx(GetFontDefault(), TextFormat("%i", i), Vector2SubtractValue(sb.pointPos[i], 0.05f), 0.1f, 0.0f, WHITE);
+                DrawCircleV(sb.pointPos[i], 0.2f, BLACK);
+                DrawTextEx(GetFontDefault(), TextFormat("%i", i), Vector2SubtractValue(sb.pointPos[i], 0.1f), 0.2f, 0.0f, WHITE);
         }
 }
