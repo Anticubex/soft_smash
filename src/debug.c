@@ -9,6 +9,6 @@ void DrawSoftbody_debug(SoftBody sb) {
         for (int i = 0; i < sb.numPoints; i++) {
                 DrawLineEx(sb.pointPos[i], sb.pointPos[(i + 1) % sb.numPoints], 0.05f, BLACK);
                 DrawCircleV(sb.pointPos[i], 0.1f, BLACK);
-                DrawTextEx(GetFontDefault(), TextFormat("%i", i), Vector2Add(sb.pointPos[i]), 0.1f, 0.0f, WHITE);
+                DrawTextEx(GetFontDefault(), TextFormat("%i", i), Vector2SubtractValue(sb.pointPos[i], 0.05f), 0.1f, 0.0f, WHITE);
         }
 }
