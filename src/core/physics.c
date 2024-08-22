@@ -9,6 +9,7 @@ void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
         // Update every point
         for (int i = 0; i < sb->numPoints; i++) {
                 sb->pointPos[i] = Vector2Add(sb->pointPos[i], Vector2Scale(sb->pointVel[i], dt));
+                sb->pointVel[i] = Vector2Add(sb->pointVel[i], Vector2Scale(worldValues.gravity, dt));
         }
         // Update bounding box
         float minx = sb->pointPos[0].x;
