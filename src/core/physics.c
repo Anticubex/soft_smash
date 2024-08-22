@@ -40,6 +40,9 @@ void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
                 }
                 avg_rotation /= sb->numPoints;
 
+                sb->shapePosition = avg_pos;
+                sb->shapeRotation = avg_rotation;
+
                 Matrix shapeMatrix = MatrixIdentity();
                 float sinA = sinf(avg_rotation);
                 float cosA = cosf(avg_rotation);

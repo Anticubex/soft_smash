@@ -25,6 +25,8 @@ typedef struct SoftBody {
         Vector2 *pointPos;
         Vector2 *pointVel;
         Vector2 *shape; // Make sure the frame is balanced (the average of the points is the origin), or else (i think) the body will move on its own
+        Vector2 shapePosition;
+        float shapeRotation;
         // Surfaces wind CCW mathematically, but because Y is inverted,
         // this means that on-screen they wind CW
         int numSurfaces;
