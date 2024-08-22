@@ -27,6 +27,7 @@ typedef struct SoftBody {
         int numPoints;
         // Points wind CCW mathematically, but because Y is inverted,
         // this means that on-screen they wind CW
+        // TODO: refactor to make surfaces explicit... this one's gonna suck
         Vector2 *pointPos;
         Vector2 *pointVel;
         Vector2 *shape; // Make sure the frame is balanced (the average of the points is the origin), or else (i think) the body will move on its own
