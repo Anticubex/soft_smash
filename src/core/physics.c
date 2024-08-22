@@ -211,7 +211,7 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                         for (int y = 0; y < py; y++) {
                                 int p = pmy + y;
                                 sb->springA[spring] = p;
-                                sb->springB[spring] = p + px;
+                                sb->springB[spring] = p + py;
                                 sb->lengths[spring] = dx;
                                 spring++;
                         }
@@ -228,39 +228,39 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                                 int p = pmy + y;
                                 // Down-right strut
                                 sb->springA[spring] = p;
-                                sb->springB[spring] = p + px + 1;
+                                sb->springB[spring] = p + py + 1;
                                 sb->lengths[spring] = diagDst;
                                 spring++;
                                 // Up-left struct
                                 sb->springA[spring] = p + 1;
-                                sb->springB[spring] = p + px;
+                                sb->springB[spring] = p + py;
                                 sb->lengths[spring] = diagDst;
                                 spring++;
                         }
                 }
-                // Do surfaces
+                // Do surfaces, remember to keep orientation
                 int surface = 0;
                 // Top and Bottom
                 for (int x = 0; x < detailX; x++) {
                         // top
-                        int p = x * px;
+                        int p = x * py;
                         sb->surfaceA[surface] = p;
-                        sb->surfaceB[surface] = p + px;
+                        sb->surfaceB[surface] = p + py;
                         surface++;
                         // bottom
-                        int bp = p + px - 1;
-                        sb->surfaceA[surface] = bp;
-                        sb->surfaceB[surface] = bp + px;
+                        int bp = p + py - 1;
+                        sb->surfaceA[surface] = bp + py;
+                        sb->surfaceB[surface] = bp;
                         surface++;
                 }
                 // Left and Right
                 for (int y = 0; y < detailY; y++) {
                         // Left
-                        sb->surfaceA[surface] = y;
-                        sb->surfaceB[surface] = y + 1;
+                        sb->surfaceA[surface] = y + 1;
+                        sb->surfaceB[surface] = y;
                         surface++;
                         // Right
-                        int p = y + detailX * px;
+                        int p = y + detailX * py;
                         sb->surfaceA[surface] = p;
                         sb->surfaceB[surface] = p + 1;
                         surface++;
