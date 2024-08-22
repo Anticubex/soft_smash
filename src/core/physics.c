@@ -80,7 +80,7 @@ void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
                         // Multiplying P by the difference saves us having to calculate the length
                         // This is where the CCW winding comes in
 
-                        Vector2 normal = {diff.y * P, -diff.x * P};
+                        Vector2 normal = {-diff.y * P, diff.x * P};
 
                         SBPoint_addForce(sb, i, normal, dt);
                         SBPoint_addForce(sb, (i + 1) % sb->numPoints, normal, dt);
