@@ -6,10 +6,7 @@
 
 typedef struct WorldValues {
         Vector2 gravity;
-        float airDensity;
         float airPressure;
-        float linearDrag;
-        float angularDrag;
 } WorldValues;
 
 typedef struct BB {
