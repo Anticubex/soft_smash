@@ -81,7 +81,7 @@ SBPos calcShape(SoftBody sb, SBPoints points) { // Recalculate frame center and 
         float avg_rotation = 0;
         for (int i = 0; i < sb.numPoints; i++) {
                 // TODO: Fix this, as it averages not angles but rotations, but also that might be what we need, idk, put some more analysis/debugging into this line
-                avg_rotation += Vector2Angle(Vector2Add(sb.shape[i], avg_pos), points.pos[i]);
+                avg_rotation += Vector2Angle(sb.shape[i], Vector2Subtract(points.pos[i], avg_pos));
         }
         avg_rotation /= sb.numPoints;
 
