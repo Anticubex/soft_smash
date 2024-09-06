@@ -77,7 +77,7 @@ void calcForces(Vector2 *forces, SoftBody sb, SBPoints points);
 void calcForce_springs(Vector2 *forces, SoftBody sb, SBPoints points);
 void calcForce_shape(Vector2 *forces, SoftBody sb, SBPoints points);
 void calcForce_pressure(Vector2 *forces, SoftBody sb, SBPoints points);
-SBPoints projectSB(SBPoints points, Vector2 *forces, float dt);
+void projectSB(SBPoints *dest, SBPoints src, Vector2 *forces, float dt);
 
 typedef struct SBPos {
         Vector2 position;

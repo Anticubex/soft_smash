@@ -27,36 +27,60 @@ void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
         sb->bounds.min = (Vector2){minx, miny};
         sb->bounds.max = (Vector2){maxx, maxy};
 
-        int n = sb->numPoints;
-        SBPoints points = rip_SBPoints(*sb);
-        Vector2 *k1 = alloc_forces(n);
-        calcForces(k1, *sb, points);
-        SBPoints newpoints = projectSB(points, k1, dt);
-        apply_SBPoints(sb, newpoints);
-        SBPos newPos = calcShape(*sb, newpoints);
-
-        free_SBPoints(&points);
-        free_SBPoints(&newpoints);
-
-        sb->shapePosition = newPos.position;
-        sb->shapeRotation = newPos.rotation;
-
         // int n = sb->numPoints;
         // SBPoints points = rip_SBPoints(*sb);
         // Vector2 *k1 = alloc_forces(n);
         // calcForces(k1, *sb, points);
+        // SBPoints newpoints = projectSB(points, k1, dt);
+        // apply_SBPoints(sb, newpoints);
+        // SBPos newPos = calcShape(*sb, newpoints);
 
-        // SBPoints newpoints = projectSB(points, k1, dt * 0.5);
-        // Vector2 *k2 = alloc_forces(n);
-        // calcForces(k2, *sb, newpoints);
+        // free_SBPoints(&points);
+        // free_SBPoints(&newpoints);
 
-        // newpoints = projectSB(points, k2, dt * 0.5);
-        // Vector2 *k3 = alloc_forces(n);
-        // calcForces(k3, *sb, newpoints);
+        // sb->shapePosition = newPos.position;
+        // sb->shapeRotation = newPos.rotation;
 
-        // newpoints = projectSB(points, k3, dt);
-        // Vector2 *k4 = alloc_forces(n);
-        // calcForces(k4, *sb, newpoints);
+        int n = sb->numPoints;
+        SBPoints ogpoints = rip_SBPoints(*sb);
+        Vector2 *k1 = alloc_forces(n);
+        calcForces(k1, *sb, ogpoints);
+
+        SBPoints newpoints;
+        alloc_SBPoints(&newpoints, n);
+
+        projectSB(&newpoints, ogpoints, k1, dt * 0.5);
+        Vector2 *k2 = alloc_forces(n);
+        calcForces(k2, *sb, newpoints);
+
+        projectSB(&newpoints, ogpoints, k2, dt * 0.5);
+        Vector2 *k3 = alloc_forces(n);
+        calcForces(k3, *sb, newpoints);
+
+        projectSB(&newpoints, ogpoints, k3, dt);
+        Vector2 *k4 = alloc_forces(n);
+        calcForces(k4, *sb, newpoints);
+        Vector2 *final = alloc_forces(n);
+        sumForces(n, final, k1, 0.16666f);
+        sumForces(n, final, k2, 0.33333f);
+        sumForces(n, final, k3, 0.33333f);
+        sumForces(n, final, k4, 0.16666f);
+
+        projectSB(&newpoints, ogpoints, final, dt);
+        apply_SBPoints(sb, newpoints);
+
+        MemFree(k1);
+        MemFree(k2);
+        MemFree(k3);
+        MemFree(k4);
+        MemFree(final);
+
+        free_SBPoints(&ogpoints);
+        free_SBPoints(&newpoints);
+
+        SBPos newPos = calcShape(*sb, newpoints);
+        sb->shapePosition = newPos.position;
+        sb->shapeRotation = newPos.rotation;
 }
 
 void calcForces(Vector2 *forces, SoftBody sb, SBPoints points) {
@@ -110,7 +134,7 @@ void calcForce_springs(Vector2 *forces, SoftBody sb, SBPoints points) {
                 Vector2 diffNorm = Vector2Scale(diff, 1. / length);
                 float x = length - sb.lengths[i];
 
-                float f = -sb.springStrength * x -
+                float f = sb.springStrength * x -
                           sb.springDamp * Vector2DotProduct(Vector2Subtract(a_vel, b_vel), diffNorm);
 
                 forces[a_idx] = Vector2Add(forces[a_idx], Vector2Scale(diffNorm, f));
@@ -167,16 +191,11 @@ void calcForce_pressure(Vector2 *forces, SoftBody sb, SBPoints points) {
         }
 }
 
-SBPoints projectSB(SBPoints points, Vector2 *forces, float dt) {
-        SBPoints pts;
-        alloc_SBPoints(&pts, points.num);
-
-        for (int i = 0; i < points.num; i++) {
-                Vector2 newVel = pts.vel[i] = Vector2Add(points.vel[i], Vector2Scale(forces[i], dt));
-                pts.pos[i] = Vector2Add(points.pos[i], Vector2Scale(newVel, dt));
+void projectSB(SBPoints *dest, SBPoints src, Vector2 *forces, float dt) {
+        for (int i = 0; i < src.num; i++) {
+                Vector2 newVel = dest->vel[i] = Vector2Add(src.vel[i], Vector2Scale(forces[i], dt));
+                dest->pos[i] = Vector2Add(src.pos[i], Vector2Scale(newVel, dt));
         }
-
-        return pts;
 }
 
 void SBPoint_addForce(SoftBody *sb, int i, Vector2 force, float dt) {
@@ -496,4 +515,10 @@ void freeSoftbody(SoftBody *toFree) {
         MemFree(toFree->lengths);
         toFree->numPoints = 0;
         toFree->numSprings = 0;
+}
+
+void sumForces(int num, Vector2 *forces, Vector2 *other, float multiplier) {
+        for (int i = 0; i < num; i++) {
+                forces[i] = Vector2Add(forces[i], Vector2Scale(other[i], multiplier));
+        }
 }
