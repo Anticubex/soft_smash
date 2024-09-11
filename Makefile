@@ -28,7 +28,7 @@ SOURCES	 := $(shell find $(SRCDIR) -type f -name *.$(SRCEXT))
 OBJECTS	 := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.$(OBJEXT)))
 
 #Default Make
-all: resources $(TARGET) run
+all: resources $(TARGET)
 
 #Remake
 remake: cleaner all
@@ -62,8 +62,8 @@ $(TARGET): $(OBJECTS)
 #Compile
 $(BUILDDIR)/%.$(OBJEXT): $(SRCDIR)/%.$(SRCEXT)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $(INC) -c -o $@ $<
 	@$(CC) $(CFLAGS) $(INCDEP) -MM $(SRCDIR)/$*.$(SRCEXT) > $(BUILDDIR)/$*.$(DEPEXT)
+	$(CC) $(CFLAGS) $(INC) -c -o $@ $<
 	@sed -e ':a;N;$$!ba;s/ \\\\\\n//g' < $(BUILDDIR)/$*.$(DEPEXT) > $(BUILDDIR)/$*.$(DEPEXT).tmp # Account for gcc line-breaking long dependency files
 	@sed -e 's|.*:|$(BUILDDIR)/$*.$(OBJEXT):|' < $(BUILDDIR)/$*.$(DEPEXT).tmp > $(BUILDDIR)/$*.$(DEPEXT) # stick the builddir stem on the filename
 	@sed -e 's/.*://' -e 's/\\$$//' < $(BUILDDIR)/$*.$(DEPEXT).tmp | fmt -1 | sed -e 's/^ *//' -e 's/$$/:/' >> $(BUILDDIR)/$*.$(DEPEXT) # split and add the files into new lines

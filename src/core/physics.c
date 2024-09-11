@@ -2,6 +2,7 @@
 #include <bettermath.h>
 #include <core/physics.h>
 #include <stddef.h>
+#include <string.h>
 
 void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
         // Now for the behemoth
@@ -26,98 +27,240 @@ void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
         sb->bounds.min = (Vector2){minx, miny};
         sb->bounds.max = (Vector2){maxx, maxy};
 
-        if (sb->type & SoftBodyType_Shape) {
-                // Recalculate frame center and rotation
-                Vector2 avg_pos = {0, 0};
-                for (int i = 0; i < sb->numPoints; i++) {
-                        avg_pos.x += sb->pointPos[i].x;
-                        avg_pos.y += sb->pointPos[i].y;
-                }
-                avg_pos = Vector2Scale(avg_pos, 1 / sb->numPoints);
-                float avg_rotation = 0;
-                for (int i = 0; i < sb->numPoints; i++) {
-                        avg_rotation += Vector2Angle(Vector2Add(sb->shape[i], avg_pos), sb->pointPos[i]);
-                }
-                avg_rotation /= sb->numPoints;
+        // int n = sb->numPoints;
+        // SBPoints points = rip_SBPoints(*sb);
+        // Vector2 *k1 = alloc_forces(n);
+        // calcForces(k1, *sb, points);
+        // SBPoints newpoints = projectSB(points, k1, dt);
+        // apply_SBPoints(sb, newpoints);
+        // SBPos newPos = calcShape(*sb, newpoints);
 
-                Matrix shapeMatrix = MatrixIdentity();
-                float sinA = sinf(avg_rotation);
-                float cosA = cosf(avg_rotation);
-                shapeMatrix.m0 = cosA;
-                shapeMatrix.m1 = sinA;
-                shapeMatrix.m4 = -sinA;
-                shapeMatrix.m5 = cosA;
+        // free_SBPoints(&points);
+        // free_SBPoints(&newpoints);
 
-                for (int i = 0; i < sb->numPoints; i++) {
-                        // Calculate distance
-                        Vector2 shape_pos = Vector2Add(Vector2Transform(sb->shape[i], shapeMatrix), avg_pos);
-                        Vector2 diff = Vector2Subtract(shape_pos, sb->pointPos[i]);
-                        float f = Vector2Length(diff) * sb->shapeSpringStrength;
-                        SBPoint_addForce(sb, i, Vector2Scale(Vector2Normalize(diff), f), dt);
-                }
+        // sb->shapePosition = newPos.position;
+        // sb->shapeRotation = newPos.rotation;
+
+        int n = sb->numPoints;
+        SBPoints ogpoints = rip_SBPoints(*sb);
+        Vector2 *k1 = alloc_forces(n);
+        calcForces(k1, *sb, ogpoints);
+
+        SBPoints newpoints;
+        alloc_SBPoints(&newpoints, n);
+
+        projectSB(&newpoints, ogpoints, k1, dt * 0.5);
+        Vector2 *k2 = alloc_forces(n);
+        calcForces(k2, *sb, newpoints);
+
+        projectSB(&newpoints, ogpoints, k2, dt * 0.5);
+        Vector2 *k3 = alloc_forces(n);
+        calcForces(k3, *sb, newpoints);
+
+        projectSB(&newpoints, ogpoints, k3, dt);
+        Vector2 *k4 = alloc_forces(n);
+        calcForces(k4, *sb, newpoints);
+        Vector2 *final = alloc_forces(n);
+        sumForces(n, final, k1, 0.16666f);
+        sumForces(n, final, k2, 0.33333f);
+        sumForces(n, final, k3, 0.33333f);
+        sumForces(n, final, k4, 0.16666f);
+
+        projectSB(&newpoints, ogpoints, final, dt);
+        apply_SBPoints(sb, newpoints);
+
+        MemFree(k1);
+        MemFree(k2);
+        MemFree(k3);
+        MemFree(k4);
+        MemFree(final);
+
+        free_SBPoints(&ogpoints);
+        free_SBPoints(&newpoints);
+
+        SBPos newPos = calcShape(*sb, newpoints);
+        sb->shapePosition = newPos.position;
+        sb->shapeRotation = newPos.rotation;
+}
+
+void calcForces(Vector2 *forces, SoftBody sb, SBPoints points) {
+        if (sb.type & SoftBodyType_Springs) {
+                calcForce_springs(forces, sb, points);
         }
-        // Note: trying to do pressure on a softbody without at least 2 points leads to a segfault.
-        // Hmm. Blame it on the user.
-        if (sb->type & SoftBodyType_Pressure) {
-                // Calculate Volume
-                // Use shoelace formula, summing matrix determinants along the edges
-                float V = 0.f;
-                for (int i = 0; i < sb->numSurfaces; i++) {
-                        Vector2 a = sb->pointPos[sb->surfaceA[i]];
-                        Vector2 b = sb->pointPos[sb->surfaceB[i]];
-                        V += a.x * b.y - a.y * b.x;
-                }
-                V *= 0.5f;
-                float P = sb->nRT / V;
-
-                // Apply Pressure
-                for (int i = 0; i < sb->numSurfaces; i++) {
-                        int a_idx = sb->surfaceA[i];
-                        int b_idx = sb->surfaceB[i];
-                        Vector2 a = sb->pointPos[a_idx];
-                        Vector2 b = sb->pointPos[b_idx];
-                        Vector2 diff = Vector2Subtract(a, b);
-
-                        // Multiplying P by the difference saves us having to calculate the length
-                        // This is where the CCW winding comes in
-
-                        Vector2 normal = {-diff.y * P, diff.x * P};
-
-                        SBPoint_addForce(sb, a_idx, normal, dt);
-                        SBPoint_addForce(sb, b_idx, normal, dt);
-                }
+        if (sb.type & SoftBodyType_Shape) {
+                calcForce_shape(forces, sb, points);
         }
+        if (sb.type & SoftBodyType_Pressure) {
+                calcForce_pressure(forces, sb, points);
+        }
+}
 
-        // Now for your basic spring force
-        for (int i = 0; i < sb->numSprings; i++) {
-                int a_idx = sb->springA[i];
-                int b_idx = sb->springB[i];
-                Vector2 a_pos = sb->pointPos[a_idx];
-                Vector2 b_pos = sb->pointPos[b_idx];
-                Vector2 a_vel = sb->pointVel[a_idx];
-                Vector2 b_vel = sb->pointVel[b_idx];
+SBPos calcShape(SoftBody sb, SBPoints points) { // Recalculate frame center and rotation
+        Vector2 avg_pos = {0, 0};
+        for (int i = 0; i < sb.numPoints; i++) {
+                avg_pos.x += points.pos[i].x;
+                avg_pos.y += points.pos[i].y;
+        }
+        avg_pos = Vector2Scale(avg_pos, 1.f / sb.numPoints);
+        float avg_rotation = 0;
+        for (int i = 0; i < sb.numPoints; i++) {
+                // TODO: Fix this, as it averages not angles but rotations, but also that might be what we need, idk, put some more analysis/debugging into this line
+                avg_rotation += Vector2Angle(sb.shape[i], Vector2Subtract(points.pos[i], avg_pos));
+        }
+        avg_rotation /= sb.numPoints;
+
+        return (SBPos){
+            .position = avg_pos,
+            .rotation = avg_rotation,
+        };
+}
+
+void calcForce_springs(Vector2 *forces, SoftBody sb, SBPoints points) {
+        for (int i = 0; i < sb.numSprings; i++) {
+                int a_idx = sb.springA[i];
+                int b_idx = sb.springB[i];
+                Vector2 a_pos = points.pos[a_idx];
+                Vector2 b_pos = points.pos[b_idx];
+                Vector2 a_vel = points.vel[a_idx];
+                Vector2 b_vel = points.vel[b_idx];
                 Vector2 diff = Vector2Subtract(a_pos, b_pos);
-                // b -> a
+
+                // a
+                // ^
+                // b
+
+                // a moving into b
+                //
+                // (0,0)    (1,0)
+                //   a   >>   b
+                // (1,1)    (0,2)
+                //
+                // b' - a' = -1, 1
+                // diff = b - a = (-1, 0) = <-
+                // springLen = 2
+                // diffLen = 1
+                // damp = (b' - a') * diffNorm = 1
+                // x = springLen - diffLen = 2 - 1 = 1
+                // diff * x = (-1, 0) correct
+                // diff * damp = (-1, 0) correct
 
                 // Calculate force
                 // f = -kx - cx'
 
                 float length = Vector2Length(diff);
                 Vector2 diffNorm = Vector2Scale(diff, 1. / length);
-                float x = length - sb->lengths[i];
+                float x = sb.lengths[i] - length;
 
-                float f = -sb->springStrength * x -
-                          sb->springDamp * Vector2DotProduct(Vector2Subtract(a_vel, b_vel), diffNorm);
+                float springForce = sb.springStrength * x;
+                float dampForce = sb.springDamp * Vector2DotProduct(Vector2Subtract(b_vel, a_vel), diffNorm);
 
-                SBPoint_addForce(sb, a_idx, Vector2Scale(diffNorm, f), dt);
-                SBPoint_addForce(sb, b_idx, Vector2Scale(diffNorm, -f), dt);
+                float f = springForce + dampForce;
+
+                forces[a_idx] = Vector2Add(forces[a_idx], Vector2Scale(diffNorm, f));
+                forces[b_idx] = Vector2Add(forces[b_idx], Vector2Scale(diffNorm, -f));
         }
+}
 
-        // TODO : Softbody drag/air resistance, using area and stuff
+void calcForce_shape(Vector2 *forces, SoftBody sb, SBPoints points) {
+
+        SBPos pos = calcShape(sb, points);
+        Matrix shapeMatrix = MatrixIdentity();
+        float sinA = sinf(pos.rotation);
+        float cosA = cosf(pos.rotation);
+        shapeMatrix.m0 = cosA;
+        shapeMatrix.m1 = sinA;
+        shapeMatrix.m4 = -sinA;
+        shapeMatrix.m5 = cosA;
+
+        for (int i = 0; i < sb.numPoints; i++) {
+                // Calculate distance
+                Vector2 shape_pos = Vector2Add(Vector2Transform(sb.shape[i], shapeMatrix), pos.position);
+                Vector2 diff = Vector2Subtract(shape_pos, points.pos[i]);
+                forces[i] = Vector2Add(forces[i], Vector2Scale(diff, sb.shapeSpringStrength));
+        }
+}
+
+void calcForce_pressure(Vector2 *forces, SoftBody sb, SBPoints points) {
+        // Calculate Volume
+        // Use shoelace formula, summing matrix determinants along the edges
+        float V = 0.f;
+        for (int i = 0; i < sb.numSurfaces; i++) {
+                Vector2 a = points.pos[sb.surfaceA[i]];
+                Vector2 b = points.pos[sb.surfaceB[i]];
+                V += a.x * b.y - a.y * b.x;
+        }
+        V *= 0.5f;
+        float P = sb.nRT / V;
+
+        // Apply Pressure
+        for (int i = 0; i < sb.numSurfaces; i++) {
+                int a_idx = sb.surfaceA[i];
+                int b_idx = sb.surfaceB[i];
+                Vector2 a = points.pos[a_idx];
+                Vector2 b = points.pos[b_idx];
+                Vector2 diff = Vector2Subtract(a, b);
+
+                // Multiplying P by the difference saves us having to calculate the length
+                // This is where the CCW winding comes in
+
+                Vector2 normal = {-diff.y * P, diff.x * P};
+
+                forces[a_idx] = Vector2Add(forces[a_idx], normal);
+                forces[b_idx] = Vector2Add(forces[b_idx], normal);
+        }
+}
+
+void projectSB(SBPoints *dest, SBPoints src, Vector2 *forces, float dt) {
+        for (int i = 0; i < src.num; i++) {
+                Vector2 newVel = dest->vel[i] = Vector2Add(src.vel[i], Vector2Scale(forces[i], dt));
+                dest->pos[i] = Vector2Add(src.pos[i], Vector2Scale(newVel, dt));
+        }
 }
 
 void SBPoint_addForce(SoftBody *sb, int i, Vector2 force, float dt) {
         sb->pointVel[i] = Vector2Add(sb->pointVel[i], Vector2Scale(force, dt));
+}
+
+Vector2 *alloc_forces(int num) {
+        return MemAlloc(sizeof(Vector2) * num);
+}
+
+SBPoints rip_SBPoints(SoftBody sb) {
+        int num = sb.numPoints;
+        unsigned int size = sizeof(Vector2) * num;
+        Vector2 *pos = MemAlloc(size);
+        Vector2 *vel = MemAlloc(size);
+        memcpy(pos, sb.pointPos, size);
+        memcpy(vel, sb.pointVel, size);
+        return (SBPoints){
+            .num = sb.numPoints,
+            .pos = pos,
+            .vel = vel,
+        };
+}
+
+void apply_SBPoints(SoftBody *sb, SBPoints points) {
+        // Slower but most definitely safer
+        memcpy(sb->pointPos, points.pos, sizeof(Vector2) * points.num);
+        memcpy(sb->pointVel, points.vel, sizeof(Vector2) * points.num);
+        // // God if this leads to bugs will it be hell to debug
+        // So yeah it immediately led to bugs
+        // MemFree(sb->pointPos);
+        // MemFree(sb->pointVel);
+        // sb->pointPos = points.pos;
+        // sb->pointVel = points.vel;
+}
+
+void alloc_SBPoints(SBPoints *points, int num) {
+        points->num = num;
+        points->pos = MemAlloc(sizeof(Vector2) * num);
+        points->vel = MemAlloc(sizeof(Vector2) * num);
+}
+
+void free_SBPoints(SBPoints *points) {
+        points->num = 0;
+        MemFree(points->pos);
+        MemFree(points->vel);
 }
 
 Vector2 rotateQuarterTurn(Vector2 v) {
@@ -153,6 +296,8 @@ void circleSoftbody(SoftBody *sb, Vector2 center, float radius, int numPoints) {
         }
         sb->surfaceB[numPoints - 1] = 0;
         sb->springB[numPoints - 1] = 0;
+
+        _center_sb_shape(sb);
 }
 
 // Recommended to just do shape matching.
@@ -274,22 +419,9 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                 int pt = 0;
                 float dx = scale.x / detailX;
                 float dy = scale.y / detailX;
-                Vector2 tracker = {scale.x * 0.5, scale.y * 0.5};
+                Vector2 tracker = {0, 0};
                 // TODO: Try out other idea that directly subdivides surfaces, rather than traverses it
-                // Right side Upwards
-                for (int y = 0; y < detailY; y++) {
-                        sb->pointPos[pt] = Vector2Add(tracker, center);
-                        sb->pointVel[pt] = Vector2Zero();
-                        sb->shape[pt] = tracker;
-                        sb->surfaceA[pt] = pt;
-                        sb->surfaceB[pt] = pt + 1;
-                        sb->springA[pt] = pt;
-                        sb->springB[pt] = pt + 1;
-                        sb->lengths[pt] = dy;
-                        pt++;
-                        tracker.y -= dy;
-                }
-                // Top side Leftwards
+                // Top side Rightwards
                 for (int x = 0; x < detailX; x++) {
                         sb->pointPos[pt] = Vector2Add(tracker, center);
                         sb->pointVel[pt] = Vector2Zero();
@@ -300,7 +432,7 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                         sb->springB[pt] = pt + 1;
                         sb->lengths[pt] = dx;
                         pt++;
-                        tracker.x -= dx;
+                        tracker.x += dx;
                 }
                 // Right side Downwards
                 for (int y = 0; y < detailY; y++) {
@@ -315,7 +447,7 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                         pt++;
                         tracker.y += dy;
                 }
-                // Bottom side Rightwards
+                // Bottom side Leftwards
                 for (int x = 0; x < detailX; x++) {
                         sb->pointPos[pt] = Vector2Add(tracker, center);
                         sb->pointVel[pt] = Vector2Zero();
@@ -326,11 +458,26 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                         sb->springB[pt] = pt + 1;
                         sb->lengths[pt] = dx;
                         pt++;
-                        tracker.x += dx;
+                        tracker.x -= dx;
+                }
+                // Right side Upwards
+                for (int y = 0; y < detailY; y++) {
+                        sb->pointPos[pt] = Vector2Add(tracker, center);
+                        sb->pointVel[pt] = Vector2Zero();
+                        sb->shape[pt] = tracker;
+                        sb->surfaceA[pt] = pt;
+                        sb->surfaceB[pt] = pt + 1;
+                        sb->springA[pt] = pt;
+                        sb->springB[pt] = pt + 1;
+                        sb->lengths[pt] = dy;
+                        pt++;
+                        tracker.y -= dy;
                 }
                 sb->surfaceB[pt - 1] = 0;
                 sb->springB[pt - 1] = 0;
         }
+
+        _center_sb_shape(sb);
 }
 
 SoftBody createEmptySoftBody(SoftBodyType type, float mass, float linearDrag, float springStrength, float springDamp, float shapeSpringStrength, float nRT) {
@@ -348,7 +495,21 @@ SoftBody createEmptySoftBody(SoftBodyType type, float mass, float linearDrag, fl
         };
 }
 
+void _center_sb_shape(SoftBody *sb) {
+        Vector2 avg_pos = {0, 0};
+        for (int i = 0; i < sb->numPoints; i++) {
+                avg_pos.x += sb->shape[i].x;
+                avg_pos.y += sb->shape[i].y;
+        }
+        avg_pos = Vector2Scale(avg_pos, 1.f / sb->numPoints);
+        for (int i = 0; i < sb->numPoints; i++) {
+                sb->shape[i].x -= avg_pos.x;
+                sb->shape[i].y -= avg_pos.y;
+        }
+}
+
 void _alloc_sb(SoftBody *sb, int numPoints, int numSurfaces, int numSprings) {
+
         sb->numPoints = numPoints;
         sb->pointPos = MemAlloc(sizeof(Vector2) * numPoints);
         sb->pointVel = MemAlloc(sizeof(Vector2) * numPoints);
@@ -373,4 +534,10 @@ void freeSoftbody(SoftBody *toFree) {
         MemFree(toFree->lengths);
         toFree->numPoints = 0;
         toFree->numSprings = 0;
+}
+
+void sumForces(int num, Vector2 *forces, Vector2 *other, float multiplier) {
+        for (int i = 0; i < num; i++) {
+                forces[i] = Vector2Add(forces[i], Vector2Scale(other[i], multiplier));
+        }
 }
