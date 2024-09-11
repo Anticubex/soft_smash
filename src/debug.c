@@ -1,6 +1,31 @@
 #include "debug.h"
 #include <stdlib.h>
 
+inline float I3WHF(unsigned char a, unsigned char b, float t) __attribute__((always_inline));
+float I3WHF(unsigned char a, unsigned char b, float t) {
+        return a + (b - a) * t;
+}
+
+Color interpolate3way(Color A, Color B, Color C, float t) {
+        if (t <= -1.f)
+                return A;
+        else if (t >= 1.f)
+                return C;
+        else if (t < 0.f)
+                return (Color){
+                    .r = I3WHF(A.r, B.r, t + 1.f),
+                    .g = I3WHF(A.g, B.g, t + 1.f),
+                    .b = I3WHF(A.b, B.b, t + 1.f),
+                    .a = I3WHF(A.a, B.a, t + 1.f),
+                };
+        return (Color){
+            .r = I3WHF(B.r, C.r, t),
+            .g = I3WHF(B.g, C.g, t),
+            .b = I3WHF(B.b, C.b, t),
+            .a = I3WHF(B.a, C.a, t),
+        };
+}
+
 void DrawSoftbody_debug(SoftBody sb) {
         // Draw shape
 
@@ -22,7 +47,8 @@ void DrawSoftbody_debug(SoftBody sb) {
         }
         // Draw Springs
         for (int i = 0; i < sb.numSprings; i++) {
-                DrawLineEx(sb.pointPos[sb.springA[i]], sb.pointPos[sb.springB[i]], 0.15f, YELLOW);
+                DrawLineEx(sb.pointPos[sb.springA[i]], sb.pointPos[sb.springB[i]], 0.15f,
+                           interpolate3way(RED, GREEN, RED, sb.lengths[i] - Vector2Distance(sb.pointPos[sb.springA[i]], sb.pointPos[sb.springB[i]])));
         }
         // Draw surfaces
         for (int i = 0; i < sb.numSurfaces; i++) {

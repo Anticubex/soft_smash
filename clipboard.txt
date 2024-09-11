@@ -1,0 +1,4 @@
+
+$(CC) $(CFLAGS) $(INCDEP) -MM $(SRCDIR)/$*.$(SRCEXT) > $(BUILDDIR)/$*.$(DEPEXT)
+gcc -Wall -g -I$(INCDIR) -MM src/core/core.c > obj/core/core.d
+gcc -Wall -g -Iinc -MM src/core/core.c > obj/core/core.d

@@ -116,7 +116,6 @@ SBPos calcShape(SoftBody sb, SBPoints points) { // Recalculate frame center and 
 }
 
 void calcForce_springs(Vector2 *forces, SoftBody sb, SBPoints points) {
-        Vector2 *returnList = MemAlloc(sizeof(returnList) * sb.numPoints);
         for (int i = 0; i < sb.numSprings; i++) {
                 int a_idx = sb.springA[i];
                 int b_idx = sb.springB[i];
@@ -125,17 +124,37 @@ void calcForce_springs(Vector2 *forces, SoftBody sb, SBPoints points) {
                 Vector2 a_vel = points.vel[a_idx];
                 Vector2 b_vel = points.vel[b_idx];
                 Vector2 diff = Vector2Subtract(a_pos, b_pos);
-                // b -> a
+
+                // a
+                // ^
+                // b
+
+                // a moving into b
+                //
+                // (0,0)    (1,0)
+                //   a   >>   b
+                // (1,1)    (0,2)
+                //
+                // b' - a' = -1, 1
+                // diff = b - a = (-1, 0) = <-
+                // springLen = 2
+                // diffLen = 1
+                // damp = (b' - a') * diffNorm = 1
+                // x = springLen - diffLen = 2 - 1 = 1
+                // diff * x = (-1, 0) correct
+                // diff * damp = (-1, 0) correct
 
                 // Calculate force
                 // f = -kx - cx'
 
                 float length = Vector2Length(diff);
                 Vector2 diffNorm = Vector2Scale(diff, 1. / length);
-                float x = length - sb.lengths[i];
+                float x = sb.lengths[i] - length;
 
-                float f = sb.springStrength * x -
-                          sb.springDamp * Vector2DotProduct(Vector2Subtract(a_vel, b_vel), diffNorm);
+                float springForce = sb.springStrength * x;
+                float dampForce = sb.springDamp * Vector2DotProduct(Vector2Subtract(b_vel, a_vel), diffNorm);
+
+                float f = springForce + dampForce;
 
                 forces[a_idx] = Vector2Add(forces[a_idx], Vector2Scale(diffNorm, f));
                 forces[b_idx] = Vector2Add(forces[b_idx], Vector2Scale(diffNorm, -f));
@@ -400,22 +419,9 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                 int pt = 0;
                 float dx = scale.x / detailX;
                 float dy = scale.y / detailX;
-                Vector2 tracker = {scale.x * 0.5, scale.y * 0.5};
+                Vector2 tracker = {0, 0};
                 // TODO: Try out other idea that directly subdivides surfaces, rather than traverses it
-                // Right side Upwards
-                for (int y = 0; y < detailY; y++) {
-                        sb->pointPos[pt] = Vector2Add(tracker, center);
-                        sb->pointVel[pt] = Vector2Zero();
-                        sb->shape[pt] = tracker;
-                        sb->surfaceA[pt] = pt;
-                        sb->surfaceB[pt] = pt + 1;
-                        sb->springA[pt] = pt;
-                        sb->springB[pt] = pt + 1;
-                        sb->lengths[pt] = dy;
-                        pt++;
-                        tracker.y -= dy;
-                }
-                // Top side Leftwards
+                // Top side Rightwards
                 for (int x = 0; x < detailX; x++) {
                         sb->pointPos[pt] = Vector2Add(tracker, center);
                         sb->pointVel[pt] = Vector2Zero();
@@ -426,7 +432,7 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                         sb->springB[pt] = pt + 1;
                         sb->lengths[pt] = dx;
                         pt++;
-                        tracker.x -= dx;
+                        tracker.x += dx;
                 }
                 // Right side Downwards
                 for (int y = 0; y < detailY; y++) {
@@ -441,7 +447,7 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                         pt++;
                         tracker.y += dy;
                 }
-                // Bottom side Rightwards
+                // Bottom side Leftwards
                 for (int x = 0; x < detailX; x++) {
                         sb->pointPos[pt] = Vector2Add(tracker, center);
                         sb->pointVel[pt] = Vector2Zero();
@@ -452,7 +458,20 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                         sb->springB[pt] = pt + 1;
                         sb->lengths[pt] = dx;
                         pt++;
-                        tracker.x += dx;
+                        tracker.x -= dx;
+                }
+                // Right side Upwards
+                for (int y = 0; y < detailY; y++) {
+                        sb->pointPos[pt] = Vector2Add(tracker, center);
+                        sb->pointVel[pt] = Vector2Zero();
+                        sb->shape[pt] = tracker;
+                        sb->surfaceA[pt] = pt;
+                        sb->surfaceB[pt] = pt + 1;
+                        sb->springA[pt] = pt;
+                        sb->springB[pt] = pt + 1;
+                        sb->lengths[pt] = dy;
+                        pt++;
+                        tracker.y -= dy;
                 }
                 sb->surfaceB[pt - 1] = 0;
                 sb->springB[pt - 1] = 0;
