@@ -73,10 +73,11 @@ typedef struct SBPoints {
         Vector2 *pos;
         Vector2 *vel;
 } SBPoints;
-void calcForces(Vector2 *forces, SoftBody sb, SBPoints points);
-void calcForce_springs(Vector2 *forces, SoftBody sb, SBPoints points);
-void calcForce_shape(Vector2 *forces, SoftBody sb, SBPoints points);
-void calcForce_pressure(Vector2 *forces, SoftBody sb, SBPoints points);
+void calcForces(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues worldValues);
+void calcForce_springs(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues worldValues);
+void calcForce_shape(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues worldValues);
+void calcForce_pressure(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues worldValues);
+void calcForce_drag(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues worldValues);
 void projectSB(SBPoints *dest, SBPoints src, Vector2 *forces, float dt);
 
 typedef struct SBPos {

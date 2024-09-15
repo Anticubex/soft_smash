@@ -44,22 +44,22 @@ void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
         int n = sb->numPoints;
         SBPoints ogpoints = rip_SBPoints(*sb);
         Vector2 *k1 = alloc_forces(n);
-        calcForces(k1, *sb, ogpoints);
+        calcForces(k1, *sb, ogpoints, worldValues);
 
         SBPoints newpoints;
         alloc_SBPoints(&newpoints, n);
 
         projectSB(&newpoints, ogpoints, k1, dt * 0.5);
         Vector2 *k2 = alloc_forces(n);
-        calcForces(k2, *sb, newpoints);
+        calcForces(k2, *sb, newpoints, worldValues);
 
         projectSB(&newpoints, ogpoints, k2, dt * 0.5);
         Vector2 *k3 = alloc_forces(n);
-        calcForces(k3, *sb, newpoints);
+        calcForces(k3, *sb, newpoints, worldValues);
 
         projectSB(&newpoints, ogpoints, k3, dt);
         Vector2 *k4 = alloc_forces(n);
-        calcForces(k4, *sb, newpoints);
+        calcForces(k4, *sb, newpoints, worldValues);
         Vector2 *final = alloc_forces(n);
         sumForces(n, final, k1, 0.16666f);
         sumForces(n, final, k2, 0.33333f);
@@ -83,16 +83,21 @@ void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
         sb->shapeRotation = newPos.rotation;
 }
 
-void calcForces(Vector2 *forces, SoftBody sb, SBPoints points) {
+void calcForces(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues worldValues) {
         if (sb.type & SoftBodyType_Springs) {
-                calcForce_springs(forces, sb, points);
+                calcForce_springs(forces, sb, points, worldValues);
         }
         if (sb.type & SoftBodyType_Shape) {
-                calcForce_shape(forces, sb, points);
+                calcForce_shape(forces, sb, points, worldValues);
         }
         if (sb.type & SoftBodyType_Pressure) {
-                calcForce_pressure(forces, sb, points);
+                calcForce_pressure(forces, sb, points, worldValues);
         }
+        // Now for gravity
+        for (int i = 0; i < points.num; i++) {
+                forces[i] = Vector2Add(forces[i], Vector2Scale(worldValues.gravity, sb.mass));
+        }
+        calcForce_drag(forces, sb, points, worldValues);
 }
 
 SBPos calcShape(SoftBody sb, SBPoints points) { // Recalculate frame center and rotation
@@ -115,7 +120,7 @@ SBPos calcShape(SoftBody sb, SBPoints points) { // Recalculate frame center and 
         };
 }
 
-void calcForce_springs(Vector2 *forces, SoftBody sb, SBPoints points) {
+void calcForce_springs(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues worldValues) {
         for (int i = 0; i < sb.numSprings; i++) {
                 int a_idx = sb.springA[i];
                 int b_idx = sb.springB[i];
@@ -124,6 +129,11 @@ void calcForce_springs(Vector2 *forces, SoftBody sb, SBPoints points) {
                 Vector2 a_vel = points.vel[a_idx];
                 Vector2 b_vel = points.vel[b_idx];
                 Vector2 diff = Vector2Subtract(a_pos, b_pos);
+
+                // You'd think this would be the easiest, but no, I spent several hours debugging
+                // this to find out that it was wrong in 20 different ways, most notable of which
+                // being that spring damping was more like spring lightspeed-accelerator.
+                // This was what spurred me into doing RK4.
 
                 // a
                 // ^
@@ -161,7 +171,7 @@ void calcForce_springs(Vector2 *forces, SoftBody sb, SBPoints points) {
         }
 }
 
-void calcForce_shape(Vector2 *forces, SoftBody sb, SBPoints points) {
+void calcForce_shape(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues worldValues) {
 
         SBPos pos = calcShape(sb, points);
         Matrix shapeMatrix = MatrixIdentity();
@@ -180,7 +190,7 @@ void calcForce_shape(Vector2 *forces, SoftBody sb, SBPoints points) {
         }
 }
 
-void calcForce_pressure(Vector2 *forces, SoftBody sb, SBPoints points) {
+void calcForce_pressure(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues worldValues) {
         // Calculate Volume
         // Use shoelace formula, summing matrix determinants along the edges
         float V = 0.f;
@@ -207,6 +217,36 @@ void calcForce_pressure(Vector2 *forces, SoftBody sb, SBPoints points) {
 
                 forces[a_idx] = Vector2Add(forces[a_idx], normal);
                 forces[b_idx] = Vector2Add(forces[b_idx], normal);
+        }
+}
+
+void calcForce_drag(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues worldValues) {
+        // Does apply a sort of drag to surface facing away from the direction
+        // Of motion because that's more mathematically elegant and so easier
+        // to code. One thing to add later is to thing about the torque of
+        // each surface segment. If one point/side is moving faster than the
+        // other, more of the force should be applied to that side
+        // ? Hmm. Think this through more later
+        for (int i = 0; i < sb.numSurfaces; i++) {
+                // Get dot product and filter negative ones out
+                int a = sb.surfaceA[i];
+                int b = sb.surfaceB[i];
+                Vector2 surface = Vector2Subtract(points.pos[a], points.pos[b]);
+                Vector2 surface_outv = (Vector2){surface.y, -surface.x};
+                float isl = 1.0f / Vector2Length(surface); // TODO: consider fast inv sqrt
+                // Thinking about this, this actually works well with the projective nature of the dot product
+                // Just due to the algebra
+                // F_d = 0.5 * density of fluid * relative speed^2 * coeff of drag * cross-sectional area
+                Vector2 velocity = Vector2Scale(Vector2Add(points.vel[a], points.vel[b]), 0.5f);
+                float v2 = Vector2LengthSqr(velocity);
+                float v = sqrtf(v2);
+                // The algebra works *flawlessly* so we don't need to normalize anything, just divide the lengths
+                // I mean, the code doesn't, obviously, but the algebra is CLEAN, ELEGANT
+
+                float F_D = 0.5 * worldValues.airPressure * sb.linearDrag * v2 * Vector2DotProduct(surface_outv, velocity) * v * isl;
+
+                forces[a] = Vector2Add(forces[a], Vector2Scale(surface_outv, -F_D));
+                forces[b] = Vector2Add(forces[b], Vector2Scale(surface_outv, -F_D));
         }
 }
 
