@@ -27,6 +27,8 @@ typedef struct {
 MyCam createCamera(Vector2 center, float v_size, int screenWidth, int screenHeight, float rotation);
 int2 world2screen(MyCam camera, Vector2 world_pos);
 
+void updateCamera(MyCam *camera);
+
 // Now to basically re-implement almost all the rshapes functions
 
 void mc_DrawRect(MyCam camera, Vector2 position, Vector2 size, Color color);

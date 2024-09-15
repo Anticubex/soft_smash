@@ -5,20 +5,20 @@ MyCam createCamera(Vector2 center, float v_size, int screenWidth, int screenHeig
         int centerY = screenHeight / 2;
         int scale_factor = screenHeight / v_size;
         return (MyCam){
-            center,
-            v_size,
-            screenWidth,
-            screenHeight,
-            rotation,
-            (Camera2D){
+            .center = center,
+            .v_size = v_size,
+            .screenWidth = screenWidth,
+            .screenHeight = screenHeight,
+            .rotation = rotation,
+            .raylib_cam = (Camera2D){
                 (Vector2){centerX, centerY},
-                (Vector2){0, 0},
+                center,
                 rotation,
                 scale_factor,
             },
-            scale_factor,
-            centerX,
-            centerY,
+            .scale_factor = scale_factor,
+            .screen_center_x = centerX,
+            .screen_center_y = centerY,
         };
 }
 
@@ -27,6 +27,22 @@ int2 world2screen(MyCam camera, Vector2 world_pos) {
             camera.screen_center_x + (int)((world_pos.x - camera.center.x) * camera.scale_factor),
             camera.screen_center_y + (int)((world_pos.y - camera.center.y) * camera.scale_factor),
         };
+}
+
+// Recalculates the raylib_cam
+void updateCamera(MyCam *camera) {
+        int centerX = camera->screenWidth / 2;
+        int centerY = camera->screenHeight / 2;
+        int scale_factor = camera->screenHeight / camera->v_size;
+        camera->raylib_cam = (Camera2D){
+            (Vector2){centerX, centerY},
+            camera->center,
+            camera->rotation,
+            scale_factor,
+        };
+        camera->scale_factor = scale_factor;
+        camera->screen_center_x = centerX;
+        camera->screen_center_y = centerY;
 }
 
 void mc_DrawRect(MyCam camera, Vector2 position, Vector2 size, Color color) {
