@@ -1,5 +1,4 @@
 # Smash Bros but with Jelly Physics
 
-Idea: Actually simulate tissue deformation
-
-Implement Kirby first because he's just one big blob of jelly
+Holy Hell this is a journey
+This repo is intensely indev, don't expect much in terms of "functional project" or whatever
