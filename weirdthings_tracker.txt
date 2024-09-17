@@ -1,0 +1,5 @@
+
+
+It appears that sometimes on frame 1 it can sort of explode.
+This is probably because of lag related to initialization, and so it as one sudden jump frame that sends everything
+haywire. Should look into fixing.
