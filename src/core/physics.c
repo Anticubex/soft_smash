@@ -232,7 +232,7 @@ void calcForce_drag(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues w
                 int a = sb.surfaceA[i];
                 int b = sb.surfaceB[i];
                 Vector2 surface = Vector2Subtract(points.pos[a], points.pos[b]);
-                Vector2 surface_outv = (Vector2){surface.y, -surface.x};
+                Vector2 surface_outv = (Vector2){-surface.y, surface.x};
                 float isl = 1.0f / Vector2Length(surface); // TODO: consider fast inv sqrt
                 // Thinking about this, this actually works well with the projective nature of the dot product
                 // Just due to the algebra
@@ -243,7 +243,11 @@ void calcForce_drag(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues w
                 // The algebra works *flawlessly* so we don't need to normalize anything, just divide the lengths
                 // I mean, the code doesn't, obviously, but the algebra is CLEAN, ELEGANT
 
-                float F_D = 0.5 * worldValues.airPressure * sb.linearDrag * v2 * Vector2DotProduct(surface_outv, velocity) * v * isl;
+                float dot = Vector2DotProduct(surface_outv, velocity);
+                if (dot <= 0.f)
+                        continue;
+
+                float F_D = 0.5 * worldValues.airPressure * sb.linearDrag * dot * v * isl;
 
                 forces[a] = Vector2Add(forces[a], Vector2Scale(surface_outv, -F_D));
                 forces[b] = Vector2Add(forces[b], Vector2Scale(surface_outv, -F_D));
