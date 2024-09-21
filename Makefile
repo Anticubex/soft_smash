@@ -15,8 +15,7 @@ DEPEXT	  := d
 OBJEXT	  := o
 
 #Flags, Libraries and Includes
-PRODFLAGS := -Wall -O3
-CFLAGS	  := -Wall -g
+CFLAGS	  := -Wall -g -O1
 LIB		 := -lraylib -lgdi32 -lwinmm
 INC		 := -I$(INCDIR)
 INCDEP	  := -I$(INCDIR)
@@ -62,7 +61,7 @@ $(TARGET): $(OBJECTS)
 #Compile
 $(BUILDDIR)/%.$(OBJEXT): $(SRCDIR)/%.$(SRCEXT)
 	@mkdir -p $(dir $@)
-	@$(CC) $(CFLAGS) $(INCDEP) -MM $(SRCDIR)/$*.$(SRCEXT) > $(BUILDDIR)/$*.$(DEPEXT)
+	$(CC) $(CFLAGS) $(INCDEP) -MM $(SRCDIR)/$*.$(SRCEXT) > $(BUILDDIR)/$*.$(DEPEXT)
 	$(CC) $(CFLAGS) $(INC) -c -o $@ $<
 	@sed -e ':a;N;$$!ba;s/ \\\\\\n//g' < $(BUILDDIR)/$*.$(DEPEXT) > $(BUILDDIR)/$*.$(DEPEXT).tmp # Account for gcc line-breaking long dependency files
 	@sed -e 's|.*:|$(BUILDDIR)/$*.$(OBJEXT):|' < $(BUILDDIR)/$*.$(DEPEXT).tmp > $(BUILDDIR)/$*.$(DEPEXT) # stick the builddir stem on the filename
