@@ -7,26 +7,6 @@
 void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
         // Now for the behemoth
 
-        // Update every point
-        for (int i = 0; i < sb->numPoints; i++) {
-                sb->pointPos[i] = Vector2Add(sb->pointPos[i], Vector2Scale(sb->pointVel[i], dt));
-                sb->pointVel[i] = Vector2Add(sb->pointVel[i], Vector2Scale(worldValues.gravity, dt));
-        }
-        // Update bounding box
-        float minx = sb->pointPos[0].x;
-        float maxx = minx;
-        float miny = sb->pointPos[0].y;
-        float maxy = miny;
-        for (int i = 1; i < sb->numPoints; i++) {
-                Vector2 pos = sb->pointPos[i];
-                minx = pos.x < minx ? pos.x : minx;
-                maxx = pos.x > maxx ? pos.x : maxx;
-                miny = pos.y < miny ? pos.y : miny;
-                maxy = pos.y > maxy ? pos.y : maxy;
-        }
-        sb->bounds.min = (Vector2){minx, miny};
-        sb->bounds.max = (Vector2){maxx, maxy};
-
         // Use arena allocation because I had a suspicious feeling
         // That some sort of memory leak was happening. Also arena alloc is cool.
         int n = sb->numPoints;
@@ -77,6 +57,21 @@ void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
         SBPos newPos = calcShape(*sb, newpoints);
         sb->shapePosition = newPos.position;
         sb->shapeRotation = newPos.rotation;
+
+        // Update bounding box
+        float minx = sb->pointPos[0].x;
+        float maxx = minx;
+        float miny = sb->pointPos[0].y;
+        float maxy = miny;
+        for (int i = 1; i < sb->numPoints; i++) {
+                Vector2 pos = sb->pointPos[i];
+                minx = pos.x < minx ? pos.x : minx;
+                maxx = pos.x > maxx ? pos.x : maxx;
+                miny = pos.y < miny ? pos.y : miny;
+                maxy = pos.y > maxy ? pos.y : maxy;
+        }
+        sb->bounds.min = (Vector2){minx, miny};
+        sb->bounds.max = (Vector2){maxx, maxy};
 }
 
 void calcForces(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues worldValues) {
