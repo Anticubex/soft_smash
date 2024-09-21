@@ -27,40 +27,43 @@ void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
         sb->bounds.min = (Vector2){minx, miny};
         sb->bounds.max = (Vector2){maxx, maxy};
 
-        // int n = sb->numPoints;
-        // SBPoints points = rip_SBPoints(*sb);
-        // Vector2 *k1 = alloc_forces(n);
-        // calcForces(k1, *sb, points);
-        // SBPoints newpoints = projectSB(points, k1, dt);
-        // apply_SBPoints(sb, newpoints);
-        // SBPos newPos = calcShape(*sb, newpoints);
-
-        // free_SBPoints(&points);
-        // free_SBPoints(&newpoints);
-
-        // sb->shapePosition = newPos.position;
-        // sb->shapeRotation = newPos.rotation;
-
+        // Use arena allocation because I had a suspicious feeling
+        // That some sort of memory leak was happening. Also arena alloc is cool.
         int n = sb->numPoints;
-        SBPoints ogpoints = rip_SBPoints(*sb);
-        Vector2 *k1 = alloc_forces(n);
+
+        Vector2 *arenaAlloc = MemAlloc(sizeof(Vector2) * n * 9);
+
+        Vector2 *k1, *k2, *k3, *k4, *final;
+        SBPoints ogpoints, newpoints;
+
+        ogpoints = (SBPoints){
+            .num = n,
+            .pos = arenaAlloc + 0 * n,
+            .vel = arenaAlloc + 1 * n,
+        };
+        memcpy(ogpoints.pos, sb->pointPos, sizeof(Vector2) * n);
+        memcpy(ogpoints.vel, sb->pointVel, sizeof(Vector2) * n);
+        k1 = arenaAlloc + 2 * n;
         calcForces(k1, *sb, ogpoints, worldValues);
 
-        SBPoints newpoints;
-        alloc_SBPoints(&newpoints, n);
+        newpoints = (SBPoints){
+            .num = n,
+            .pos = arenaAlloc + 3 * n,
+            .vel = arenaAlloc + 4 * n,
+        };
 
         projectSB(&newpoints, ogpoints, k1, dt * 0.5);
-        Vector2 *k2 = alloc_forces(n);
+        k2 = arenaAlloc + 5 * n;
         calcForces(k2, *sb, newpoints, worldValues);
 
         projectSB(&newpoints, ogpoints, k2, dt * 0.5);
-        Vector2 *k3 = alloc_forces(n);
+        k3 = arenaAlloc + 6 * n;
         calcForces(k3, *sb, newpoints, worldValues);
 
         projectSB(&newpoints, ogpoints, k3, dt);
-        Vector2 *k4 = alloc_forces(n);
+        k4 = arenaAlloc + 7 * n;
         calcForces(k4, *sb, newpoints, worldValues);
-        Vector2 *final = alloc_forces(n);
+        final = arenaAlloc + 8 * n;
         sumForces(n, final, k1, 0.16666f);
         sumForces(n, final, k2, 0.33333f);
         sumForces(n, final, k3, 0.33333f);
@@ -69,14 +72,7 @@ void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
         projectSB(&newpoints, ogpoints, final, dt);
         apply_SBPoints(sb, newpoints);
 
-        MemFree(k1);
-        MemFree(k2);
-        MemFree(k3);
-        MemFree(k4);
-        MemFree(final);
-
-        free_SBPoints(&ogpoints);
-        free_SBPoints(&newpoints);
+        MemFree(arenaAlloc);
 
         SBPos newPos = calcShape(*sb, newpoints);
         sb->shapePosition = newPos.position;
