@@ -13,7 +13,7 @@ int main() {
         InitWindow(screenWidth, screenHeight, "Test Platformer");
         SetTargetFPS(60);
 
-        WorldValues worldValues = {.gravity = {0, 0}};
+        WorldValues worldValues = {.gravity = {0, 1}, .airPressure = 1.0f};
 
         MyCam camera = createCamera((Vector2){0, 0}, 10.0, screenWidth, screenHeight, 0.0);
 
@@ -21,13 +21,23 @@ int main() {
             SoftBodyType_Springs | SoftBodyType_Pressure | SoftBodyType_Shape, // type
             1.f,                                                               // mass
             1.f,                                                               // drag
-            10.f,                                                              // spring strength
-            1.f,                                                               // spring dampening
-            1.f,                                                               // shape spring strength
+            20.f,                                                              // spring strength
+            2.f,                                                               // spring dampening
+            5.f,                                                               // shape spring strength
             10.f                                                               // nRT
         );
-        // circleSoftbody(&body1, (Vector2){-3.0, 0}, 2.0, 10);
         rectSoftbody(&body1, (Vector2){-2.5, -1.5}, (Vector2){5.0, 3.0}, 5, 3, true);
+
+        // SoftBody body1 = createEmptySoftBody(
+        //     (SoftBodyType_Springs) | (SoftBodyType_Pressure) | (0 & SoftBodyType_Shape), // type
+        //     1.0f,                                                                        // mass
+        //     6.f,                                                                         // drag
+        //     25.f,                                                                        // spring strength
+        //     5.f,                                                                         // spring dampening
+        //     0.1f,                                                                        // shape spring strength
+        //     25.f                                                                         // nRT
+        // );
+        // circleSoftbody(&body1, (Vector2){-3.0, 0}, 2.0, 15);
 
         // SoftBody body2 = createEmptySoftBody(SoftBodyType_Pressure, 10, 1, 10, 1, 1, 10);
         // circleSoftbody(&body2, (Vector2){3.0, 0}, 2.0, 10);
@@ -52,8 +62,14 @@ int main() {
                     : IsKeyDown(KEY_ONE)   ? .1f
                                            : 0.0f;
 
-                update_SoftBody(&body1, worldValues, dt * testspeedmultiplier);
+                if (testspeedmultiplier != 0.0f)
+                        update_SoftBody(&body1, worldValues, dt * testspeedmultiplier);
+                if (IsKeyPressed(KEY_SPACE))
+                        update_SoftBody(&body1, worldValues, dt);
                 // update_SoftBody(&body2, worldValues, dt);
+
+                camera.center = body1.shapePosition;
+                updateCamera(&camera);
 
                 BeginMode2D(camera.raylib_cam);
                 /* Draw Stuff Here */
