@@ -123,11 +123,39 @@ bool isStarShaped(Vector2 *vertices, int *poly, int num, Vector2 *center) {
         return 0;
 }
 
+// Checks if the point n is the start of an ear
+bool isTri(Vector2 *points, int num, int n) {
+        // The most common case for it *not* being an edge is when the
+        // vertex n+1 is concave; That is, like so:
+        //* n-n+1
+        //*      \
+        //*       n+2
+        // So we check that first
+
+        Vector2 a = points[n];
+        Vector2 b = points[(n + 1) % num];
+        Vector2 c = points[(n + 2) % num];
+
+        Vector2 e1 = Vector2Subtract(b, a);
+        Vector2 e2 = Vector2Subtract(c, b);
+
+        if (VecCross(e1, e2) <= 0.f)
+                return false;
+
+        // Now we check if the cutting edge crosses any sides of the polygon
+        // Or don't and let them suffer with it because this case is probably
+        // exceedingly rare i.e. "ostrich optimization"
+        return true;
+}
+
 // Splits a polygon into a list of triangles
 PolyNode *splitPoly(Vector2 *points, int num) {
         // Idea: keep chunking off triangles off the edges until the remnants are star-shaped
         // The star-shaped check helps to keep the texture from being disgustingly squished
         // I think this is basically an application of the two ears theorem
+
+        // Here we see an optimization tweak: how many ears do we chop off
+        // until we check for a star shape again?
 }
 
 // Draw textured polygon, defined by vertex and texture coordinates

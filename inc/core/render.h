@@ -10,8 +10,7 @@ typedef struct SoftBodyRenderer {
 void renderSoftbody(SoftBody sb, SoftBodyRenderer rend);
 
 typedef struct PolyNode {
-        int root;
-        int length;
+        int *verts;
         struct PolyNode *next;
 } PolyNode;
 
