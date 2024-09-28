@@ -15,6 +15,16 @@ typedef struct PolyNode {
         struct PolyNode *next;
 } PolyNode;
 
+typedef struct Halfplane {
+        Vector2 p;
+        Vector2 pq;
+        float angle;
+} Halfplane;
+
+float VecCross(Vector2 a, Vector2 b);
+Halfplane createHalfplane(Vector2 a, Vector2 b);
+bool outHalfplane(Halfplane plane, Vector2 point);
+bool isStarShaped(Vector2 *vertices, int *poly, int num, Vector2 *center);
 PolyNode *splitPoly(Vector2 *points, int num);
 
 void merge(Vector2 *points, int *indices, int left, int mid, int right, int *temp);
@@ -23,4 +33,4 @@ void mergeSortHelper(Vector2 *points, int *indices, int left, int right, int *te
 
 void sortY(Vector2 *points, int num, int *dest);
 
-void DrawTexturePoly(Texture2D texture, Vector2 center, Vector2 *points, Vector2 *texcoords, int pointCount, Color tint);
+void DrawTexturePoly(Texture2D texture, Vector2 texcenter, Vector2 center, Vector2 *points, Vector2 *texcoords, int pointCount, Color tint);
