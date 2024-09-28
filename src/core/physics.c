@@ -420,29 +420,29 @@ void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int 
                 }
                 // Do surfaces, remember to keep orientation
                 int surface = 0;
-                // Top and Bottom
+
+                // Top rightwards
                 for (int x = 0; x < detailX; x++) {
-                        // top
-                        int p = x * py;
-                        sb->surfaceA[surface] = p;
-                        sb->surfaceB[surface] = p + py;
-                        surface++;
-                        // bottom
-                        int bp = p + py - 1;
-                        sb->surfaceA[surface] = bp + py;
-                        sb->surfaceB[surface] = bp;
+                        sb->surfaceA[surface] = x * py;
+                        sb->surfaceB[surface] = (x + 1) * py;
                         surface++;
                 }
-                // Left and Right
+                // Right downwards
                 for (int y = 0; y < detailY; y++) {
-                        // Left
-                        sb->surfaceA[surface] = y + 1;
-                        sb->surfaceB[surface] = y;
+                        sb->surfaceA[surface] = detailX * py + y;
+                        sb->surfaceB[surface] = detailX * py + y + 1;
                         surface++;
-                        // Right
-                        int p = y + detailX * py;
-                        sb->surfaceA[surface] = p;
-                        sb->surfaceB[surface] = p + 1;
+                }
+                // Bottom leftwards
+                for (int x = 0; x < detailX; x++) {
+                        sb->surfaceA[surface] = px * py - 1 - x * py;
+                        sb->surfaceB[surface] = px * py - 1 - (x + 1) * py;
+                        surface++;
+                }
+                // Left upwards
+                for (int y = 0; y < detailY; y++) {
+                        sb->surfaceA[surface] = detailY - y;
+                        sb->surfaceB[surface] = detailY - y - 1;
                         surface++;
                 }
 

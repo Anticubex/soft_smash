@@ -4,9 +4,14 @@ CC		  := gcc
 #The Target Binary Program
 TARGET	  := soft_smash
 
+#Debugging stuff
+DEBUG	:= GDB
+BREAKPOINTS := bp
+
 #The Directories, Source, Includes, Objects, Binary and Resources
 SRCDIR	  := src
 INCDIR	  := inc
+LIBDIR	  := lib
 BUILDDIR	:= obj
 TARGETDIR   := bin
 RESDIR	  := res
@@ -15,8 +20,8 @@ DEPEXT	  := d
 OBJEXT	  := o
 
 #Flags, Libraries and Includes
-CFLAGS	  := -Wall -g -O1
-LIB		 := -lraylib -lgdi32 -lwinmm
+CFLAGS	  := -Wall -g
+LIB		 := -L$(LIBDIR) -lraylib -lgdi32 -lwinmm -ltess2
 INC		 := -I$(INCDIR)
 INCDEP	  := -I$(INCDIR)
 
@@ -54,15 +59,21 @@ ifneq ($(MAKECMDGOALS),clean)
     -include $(OBJECTS:.$(OBJEXT)=.$(DEPEXT))
 endif
 
+$(BREAKPOINTS):
+	touch $(BREAKPOINTS)
+
+gdb: $(TARGET) $(BREAKPOINTS)
+	gdb $(TARGETDIR)/$(TARGET).exe -x $(BREAKPOINTS)
+
 #Link
 $(TARGET): $(OBJECTS)
-	$(CC) -o $(TARGETDIR)/$(TARGET).exe $^ $(LIB)
+	$(CC) $(CFLAGS) -o $(TARGETDIR)/$(TARGET).exe $^ $(LIB)
 
 #Compile
 $(BUILDDIR)/%.$(OBJEXT): $(SRCDIR)/%.$(SRCEXT)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $(INCDEP) -MM $(SRCDIR)/$*.$(SRCEXT) > $(BUILDDIR)/$*.$(DEPEXT)
 	$(CC) $(CFLAGS) $(INC) -c -o $@ $<
+	$(CC) $(CFLAGS) $(INCDEP) -MM $(SRCDIR)/$*.$(SRCEXT) > $(BUILDDIR)/$*.$(DEPEXT)
 	@sed -e ':a;N;$$!ba;s/ \\\\\\n//g' < $(BUILDDIR)/$*.$(DEPEXT) > $(BUILDDIR)/$*.$(DEPEXT).tmp # Account for gcc line-breaking long dependency files
 	@sed -e 's|.*:|$(BUILDDIR)/$*.$(OBJEXT):|' < $(BUILDDIR)/$*.$(DEPEXT).tmp > $(BUILDDIR)/$*.$(DEPEXT) # stick the builddir stem on the filename
 	@sed -e 's/.*://' -e 's/\\$$//' < $(BUILDDIR)/$*.$(DEPEXT).tmp | fmt -1 | sed -e 's/^ *//' -e 's/$$/:/' >> $(BUILDDIR)/$*.$(DEPEXT) # split and add the files into new lines
@@ -72,4 +83,4 @@ run:
 	$(TARGETDIR)/$(TARGET).exe
 
 #Non-File Targets
-.PHONY: all remake clean cleaner resources
+.PHONY: all remake clean cleaner resources gdb
