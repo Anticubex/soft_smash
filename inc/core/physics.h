@@ -99,4 +99,8 @@ void free_SBPoints(SBPoints *points);
 void circleSoftbody(SoftBody *sb, Vector2 center, float radius, int numPoints);
 void rectSoftbody(SoftBody *sb, Vector2 center, Vector2 scale, int detailX, int detailY, bool makeTruss);
 
+// Applies a force to the entire softbody
+void applyForce(SoftBody *sb, Vector2 force);
+void applyImpulse(SoftBody *sb, Vector2 impulse);
+
 #endif

@@ -577,3 +577,15 @@ void sumForces(int num, Vector2 *forces, Vector2 *other, float multiplier) {
                 forces[i] = Vector2Add(forces[i], Vector2Scale(other[i], multiplier));
         }
 }
+
+void applyForce(SoftBody *sb, Vector2 force) {
+        for (int i = 0; i < sb; i++) {
+                sb->pointVel[i] = Vector2Add(sb->pointVel[i], Vector2Scale(force, sb->invMass));
+        }
+}
+
+void applyImpulse(SoftBody *sb, Vector2 impulse) {
+        for (int i = 0; i < sb; i++) {
+                sb->pointVel[i] = Vector2Add(sb->pointVel[i], impulse);
+        }
+}
