@@ -32,15 +32,15 @@ void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
             .vel = arenaAlloc + 4 * n,
         };
 
-        projectSB(&newpoints, ogpoints, k1, dt * 0.5);
+        projectSB(&newpoints, ogpoints, k1, dt * 0.5, sb->invMass);
         k2 = arenaAlloc + 5 * n;
         calcForces(k2, *sb, newpoints, worldValues);
 
-        projectSB(&newpoints, ogpoints, k2, dt * 0.5);
+        projectSB(&newpoints, ogpoints, k2, dt * 0.5, sb->invMass);
         k3 = arenaAlloc + 6 * n;
         calcForces(k3, *sb, newpoints, worldValues);
 
-        projectSB(&newpoints, ogpoints, k3, dt);
+        projectSB(&newpoints, ogpoints, k3, dt, sb->invMass);
         k4 = arenaAlloc + 7 * n;
         calcForces(k4, *sb, newpoints, worldValues);
         final = arenaAlloc + 8 * n;
@@ -49,7 +49,7 @@ void update_SoftBody(SoftBody *sb, WorldValues worldValues, float dt) {
         sumForces(n, final, k3, 0.33333f);
         sumForces(n, final, k4, 0.16666f);
 
-        projectSB(&newpoints, ogpoints, final, dt);
+        projectSB(&newpoints, ogpoints, final, dt, sb->invMass);
         apply_SBPoints(sb, newpoints);
 
         MemFree(arenaAlloc);
@@ -245,9 +245,9 @@ void calcForce_drag(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues w
         }
 }
 
-void projectSB(SBPoints *dest, SBPoints src, Vector2 *forces, float dt) {
+void projectSB(SBPoints *dest, SBPoints src, Vector2 *forces, float dt, float invMass) {
         for (int i = 0; i < src.num; i++) {
-                Vector2 newVel = dest->vel[i] = Vector2Add(src.vel[i], Vector2Scale(forces[i], dt));
+                Vector2 newVel = dest->vel[i] = Vector2Add(src.vel[i], Vector2Scale(forces[i], dt * invMass));
                 dest->pos[i] = Vector2Add(src.pos[i], Vector2Scale(newVel, dt));
         }
 }
@@ -522,6 +522,7 @@ SoftBody createEmptySoftBody(SoftBodyType type, float mass, float linearDrag, fl
             .numSurfaces = 0,
             .numSprings = 0,
             .mass = mass,
+            .invMass = 1.f / mass,
             .linearDrag = linearDrag,
             .springStrength = springStrength,
             .springDamp = springDamp,

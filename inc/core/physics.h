@@ -38,6 +38,7 @@ typedef struct SoftBody {
         int *springB;
         float *lengths;
         float mass;
+        float invMass;
         float linearDrag;
         float springStrength;
         float springDamp;
@@ -78,7 +79,7 @@ void calcForce_springs(Vector2 *forces, SoftBody sb, SBPoints points, WorldValue
 void calcForce_shape(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues worldValues);
 void calcForce_pressure(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues worldValues);
 void calcForce_drag(Vector2 *forces, SoftBody sb, SBPoints points, WorldValues worldValues);
-void projectSB(SBPoints *dest, SBPoints src, Vector2 *forces, float dt);
+void projectSB(SBPoints *dest, SBPoints src, Vector2 *forces, float dt, float invMass);
 
 typedef struct SBPos {
         Vector2 position;
