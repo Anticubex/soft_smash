@@ -21,9 +21,9 @@ void renderSoftbody(SoftBody sb, SoftBodyRenderer rend) {
 
         tessTesselate(tessellator, TESS_WINDING_ODD, TESS_POLYGONS, 3, 2, NULL);
 
-        int vertexCount = tessGetVertexCount(tessellator);
+        // int vertexCount = tessGetVertexCount(tessellator);
         const Vector2 *vertices = (const Vector2 *)tessGetVertices(tessellator);
-        int indexCount = tessGetElementCount(tessellator) * 3;
+        // int indexCount = tessGetElementCount(tessellator) * 3;
         int numTris = tessGetElementCount(tessellator);
         const int *indices = tessGetElements(tessellator);
 

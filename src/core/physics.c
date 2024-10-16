@@ -298,10 +298,6 @@ void free_SBPoints(SBPoints *points) {
         MemFree(points->vel);
 }
 
-Vector2 rotateQuarterTurn(Vector2 v) {
-        return (Vector2){-v.y, v.x};
-}
-
 // Recommended to just do pressure
 void circleSoftbody(SoftBody *sb, Vector2 center, float radius, int numPoints) {
 
@@ -579,13 +575,13 @@ void sumForces(int num, Vector2 *forces, Vector2 *other, float multiplier) {
 }
 
 void applyForce(SoftBody *sb, Vector2 force) {
-        for (int i = 0; i < sb; i++) {
+        for (int i = 0; i < sb->numPoints; i++) {
                 sb->pointVel[i] = Vector2Add(sb->pointVel[i], Vector2Scale(force, sb->invMass));
         }
 }
 
 void applyImpulse(SoftBody *sb, Vector2 impulse) {
-        for (int i = 0; i < sb; i++) {
+        for (int i = 0; i < sb->numPoints; i++) {
                 sb->pointVel[i] = Vector2Add(sb->pointVel[i], impulse);
         }
 }

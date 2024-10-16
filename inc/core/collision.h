@@ -4,11 +4,11 @@
 #include "physics.h"
 
 typedef enum SoftBodyMaterial {
-
+        SoftBodyMaterial_DEFAULT
 } SoftBodyMaterial;
 
 /* Collision */
-
+// TODO: Make this multipoint, single-point doesn't cut it
 typedef struct CollisionData {
         bool collided;
         // The struct assumes a point from A is inside B;
@@ -29,6 +29,8 @@ typedef struct CollisionData {
 CollisionData checkCollision(SoftBody A, SoftBody B);
 
 float getFriction(SoftBodyMaterial A, SoftBodyMaterial B);
+
+// char *debugString = ((void *)0);
 
 // Handles collisions, applying forces to each, e.t.c.
 void handleCollision(SoftBody A, SoftBody B, CollisionData data, SoftBodyMaterial matA, SoftBodyMaterial matB, float dt);
