@@ -54,10 +54,12 @@ clean:
 cleaner: clean
 	@$(RM) -rf $(TARGETDIR)
 
-#Pull in dependency info for *existing* .o files
-ifneq ($(MAKECMDGOALS),clean)
-    -include $(OBJECTS:.$(OBJEXT)=.$(DEPEXT))
-endif
+# #Pull in dependency info for *existing* .o files
+# ifneq ($(MAKECMDGOALS),clean)
+#     -include $(OBJECTS:.$(OBJEXT)=.$(DEPEXT))
+# else ifneq ($(MAKECMDGOALS),run)
+#     -include $(OBJECTS:.$(OBJEXT)=.$(DEPEXT))
+# endif
 
 $(BREAKPOINTS):
 	touch $(BREAKPOINTS)
@@ -73,11 +75,7 @@ $(TARGET): $(OBJECTS)
 $(BUILDDIR)/%.$(OBJEXT): $(SRCDIR)/%.$(SRCEXT)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INC) -c -o $@ $<
-	$(CC) $(CFLAGS) $(INCDEP) -MM $(SRCDIR)/$*.$(SRCEXT) > $(BUILDDIR)/$*.$(DEPEXT)
-	@sed -e ':a;N;$$!ba;s/ \\\\\\n//g' < $(BUILDDIR)/$*.$(DEPEXT) > $(BUILDDIR)/$*.$(DEPEXT).tmp # Account for gcc line-breaking long dependency files
-	@sed -e 's|.*:|$(BUILDDIR)/$*.$(OBJEXT):|' < $(BUILDDIR)/$*.$(DEPEXT).tmp > $(BUILDDIR)/$*.$(DEPEXT) # stick the builddir stem on the filename
-	@sed -e 's/.*://' -e 's/\\$$//' < $(BUILDDIR)/$*.$(DEPEXT).tmp | fmt -1 | sed -e 's/^ *//' -e 's/$$/:/' >> $(BUILDDIR)/$*.$(DEPEXT) # split and add the files into new lines
-	@rm -f $(BUILDDIR)/$*.$(DEPEXT).tmp
+	@#$(CC) $(CFLAGS) $(INCDEP) -MM $(SRCDIR)/$*.$(SRCEXT) > $(BUILDDIR)/$*.$(DEPEXT)
 
 run:
 	$(TARGETDIR)/$(TARGET).exe
