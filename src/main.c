@@ -43,50 +43,8 @@ int main() {
             10.f,                                                                    // shape spring strength
             25.f                                                                     // nRT
         );
-        circleSoftbody(&body2, (Vector2){3.f, 0.f}, 2.f, 15);
+        circleSoftbody(&body2, (Vector2){3.f, 2.f}, 2.f, 15);
         // // rectSoftbody(&body2, (Vector2){5.0, -1.5}, (Vector2){5.0, 3.0}, 5, 3, true);
-
-        // int b1pts = 3;
-        // body1.numPoints = b1pts;
-        // body1.pointPos = malloc(sizeof(Vector2) * b1pts);
-        // body1.shape = calloc(b1pts, sizeof(Vector2));
-        // body1.pointPos[0] = (Vector2){-5.0f, -1.5f};
-        // body1.pointPos[1] = (Vector2){-5.0f, 1.5f};
-        // body1.pointPos[2] = (Vector2){-6.0f, 0.0f};
-        // body1.pointVel = calloc(b1pts, sizeof(Vector2));
-        // body1.numSprings = 1;
-        // body1.springA = malloc(sizeof(int));
-        // body1.springB = malloc(sizeof(int));
-        // body1.lengths = malloc(sizeof(float));
-        // body1.springA[0] = 0;
-        // body1.springB[0] = 1;
-        // body1.lengths[0] = 3.0f;
-        // body1.numSurfaces = 1;
-        // body1.surfaceA = malloc(sizeof(int));
-        // body1.surfaceB = malloc(sizeof(int));
-        // body1.surfaceA[0] = 0;
-        // body1.surfaceB[0] = 1;
-
-        // body2.numPoints = 2;
-        // body2.pointPos = malloc(sizeof(Vector2) * 2);
-        // body2.shape = malloc(sizeof(Vector2) * 2);
-        // body2.pointPos[0] = (Vector2){1.5f, -0.5f};
-        // body2.pointPos[1] = (Vector2){3.5f, 0.5f};
-        // body2.shape[0] = (Vector2){-1.0f, 0.0f};
-        // body2.shape[1] = (Vector2){1.0f, 0.0f};
-        // body2.pointVel = calloc(2, sizeof(Vector2));
-        // body2.numSprings = 1;
-        // body2.springA = malloc(sizeof(int));
-        // body2.springB = malloc(sizeof(int));
-        // body2.lengths = malloc(sizeof(float));
-        // body2.springA[0] = 0;
-        // body2.springB[0] = 1;
-        // body2.lengths[0] = 2.0f;
-        // body2.numSurfaces = 1;
-        // body2.surfaceA = malloc(sizeof(int));
-        // body2.surfaceB = malloc(sizeof(int));
-        // body2.surfaceA[0] = 0;
-        // body2.surfaceB[0] = 1;
 
         applyImpulse(&body1, (Vector2){1.f, 0.f});
         applyImpulse(&body2, (Vector2){-1.f, 0.f});
@@ -128,11 +86,7 @@ int main() {
 
                 CollisionData data = checkCollision(body1, body2);
                 if (data.collided) {
-                        if (data.invert) {
-                                handleCollision(body2, body1, data, SoftBodyMaterial_DEFAULT, SoftBodyMaterial_DEFAULT, dt);
-                        } else {
-                                handleCollision(body1, body2, data, SoftBodyMaterial_DEFAULT, SoftBodyMaterial_DEFAULT, dt);
-                        }
+                        handleCollision(body1, body2, data, SoftBodyMaterial_DEFAULT, SoftBodyMaterial_DEFAULT, dt);
                 }
         skipCollision:
                 // camera.center = body1.shapePosition;
@@ -140,10 +94,10 @@ int main() {
 
                 BeginMode2D(camera.raylib_cam);
                 /* Draw Stuff Here */
-                // renderSoftbody(body1, rend1);
-                // renderSoftbody(body2, rend2);
-                DrawSoftbody_debug(body1);
-                DrawSoftbody_debug(body2);
+                renderSoftbody(body1, rend1);
+                renderSoftbody(body2, rend2);
+                // DrawSoftbody_debug(body1);
+                // DrawSoftbody_debug(body2);
 
                 if (data.collided) {
                         SoftBody *a, *b;
