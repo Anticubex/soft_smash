@@ -114,8 +114,7 @@ float getFriction(SoftBodyMaterial A, SoftBodyMaterial B) {
 }
 
 // Assumes the collision is actually collided and already un-inverted
-void handleCollision(SoftBody A, SoftBody B, CollisionData data, SoftBodyMaterial matA, SoftBodyMaterial matB, float dt) {
-
+void _handleCollision_internal(SoftBody A, SoftBody B, CollisionData data, SoftBodyMaterial matA, SoftBodyMaterial matB, float dt) {
         // Based on the ideas from JellyCar Worlds collision
 
         // First, shift the positions so the shapes are no longer intersecting
@@ -170,8 +169,6 @@ void handleCollision(SoftBody A, SoftBody B, CollisionData data, SoftBodyMateria
         Vector2 B1 = Vector2Subtract(p2, Vector2Scale(o, b));
         Vector2 v1 = Vector2Add(v, Vector2Scale(o, p));
 
-        printf(TextFormat("%f u | %f, %f\n", o.x, o.y));
-
         B.pointPos[bsa] = A1;
         B.pointPos[bsb] = B1;
         A.pointPos[data.point] = v1;
@@ -216,6 +213,13 @@ void handleCollision(SoftBody A, SoftBody B, CollisionData data, SoftBodyMateria
         A.pointVel[data.point] = Vector2Add(final_vel, b_avg_vel);
 
         // Redistribute B velocities
-        B.pointVel[bsa] = Vector2Add(b_avg_vel, Vector2Scale(final_vel, u - 1));
-        B.pointVel[bsb] = Vector2Add(b_avg_vel, Vector2Scale(final_vel, -u));
+        B.pointVel[bsa] = Vector2Subtract(b_avg_vel, Vector2Scale(final_vel, 1 - u));
+        B.pointVel[bsb] = Vector2Subtract(b_avg_vel, Vector2Scale(final_vel, u));
+}
+
+void handleCollision(SoftBody A, SoftBody B, CollisionData data, SoftBodyMaterial matA, SoftBodyMaterial matB, float dt) {
+        if (data.invert)
+                _handleCollision_internal(B, A, data, matA, matB, dt);
+        else
+                _handleCollision_internal(A, B, data, matA, matB, dt);
 }
